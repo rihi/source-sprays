@@ -30,11 +30,11 @@ pub enum Cli {
 
 		/// The resolution of the smallest mipmap that should be required.
 		/// If left on 'Infer', uses 32 if at least one mip specified, else 'none'. 
-		#[bpaf(argument("lowest-mip-resolution"), fallback(LMipResOption::Infer), debug_fallback)]
+		#[bpaf(argument("value"), fallback(LMipResOption::Infer), debug_fallback)]
 		lowest_mip_resolution: LMipResOption,
 
 		/// Maximum allowed file size in KiB
-		#[bpaf(argument("size-limit"), fallback(512), display_fallback)]
+		#[bpaf(argument("value"), fallback(512), display_fallback)]
 		size_limit: u32,
 
 		/// Which spray to compile. Directory when using recursive
@@ -53,11 +53,11 @@ pub enum Cli {
 
 		/// The resolution of the smallest mipmap that should be required.
 		/// If left on 'Infer', uses 32 if at least one mip specified, else 'none'. 
-		#[bpaf(argument("lowest-mip-resolution"), fallback(LMipResOption::Infer), debug_fallback)]
+		#[bpaf(argument("value"), fallback(LMipResOption::Infer), debug_fallback)]
 		lowest_mip_resolution: LMipResOption,
 
 		/// Maximum allowed file size in KiB
-		#[bpaf(argument("size-limit"), fallback(512), display_fallback)]
+		#[bpaf(argument("value"), fallback(512), display_fallback)]
 		size_limit: u32,
 
 		/// Where to write the vtf file
