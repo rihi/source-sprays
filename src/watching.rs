@@ -1,5 +1,6 @@
 use crate::spray_util::{convert_file, convert_folder};
 use std::path::{Path, PathBuf};
+use crate::cli::LMipResOption;
 
 pub fn rebase_path(
 	path: &Path,
@@ -37,12 +38,12 @@ pub fn is_spray_def(
 pub fn compile_spray_def(
 	def_path: &Path,
 	vtf_path: &Path,
-	lowest_mip_resolution: u32,
+	lowest_mip_resolution: LMipResOption,
 	size_limit: u32,
 ) {
 	if def_path.is_file() {
 		println!("Info: Compiling file spray def {} to {}", def_path.display(), vtf_path.display());
-		if let Err(e) = convert_file(def_path, &vtf_path, lowest_mip_resolution, size_limit) {
+		if let Err(e) = convert_file(def_path, &vtf_path, lowest_mip_resolution.infer(true), size_limit) {
 			eprintln!("Error: Failed convert file def to vtf: {}\n{:?}", def_path.display(), e);
 		}
 	}
@@ -67,27 +68,4 @@ pub fn delete_spray_def(
 	let _ = std::fs::remove_file(vtf_file);
 	println!("Info: Removing spray {} at {}", def_path.display(), vtf_dir.display());
 	let _ = std::fs::remove_file(vtf_dir);
-}
-
-pub fn compile_potential_def(
-	def_path: &Path,
-	input_path: &Path,
-	output_path: &Path,
-	recursive: bool,
-	lowest_mip_resolution: u32,
-	size_limit: u32,
-) {
-	if !is_spray_def(def_path) {
-		return
-	}
-
-	let vtf_path = if recursive {
-		&path_vtf_for_def(def_path, input_path, output_path)
-	} else {
-		if (def_path != input_path) {
-			return
-		}
-		output_path
-	};
-	compile_spray_def(def_path, vtf_path, lowest_mip_resolution, size_limit);
 }

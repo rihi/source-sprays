@@ -1,3 +1,4 @@
+use std::cmp::max;
 use crate::image_util::{compress, has_transparency, resize};
 use color_eyre::eyre;
 use color_eyre::eyre::{OptionExt, WrapErr};
@@ -15,7 +16,7 @@ pub fn write_vtf<'a>(
 	images: &[Option<&[RgbaImage]>], 
 	// images: impl Into<Vec<Option<&'a [DynamicImage]>>>, 
 	// images: &mut Vec<Option<Vec<DynamicImage>>>,
-	lowest_mip_resolution: u32,
+	lowest_mip_resolution: Option<u32>,
 	size_limit: u32,
 ) -> eyre::Result<()> {
 	let is_transparent = images.iter()
@@ -24,24 +25,24 @@ pub fn write_vtf<'a>(
 		.flatten()
 		.any(|img| has_transparency(img));
 
-	let main_image = images[0].unwrap();
+	let main_images = images[0].unwrap();
+	let main_first_frame = &main_images[0];
 	
 	let texture_format = if is_transparent { TextureFormat::Bc3 } else { TextureFormat::Bc1 };
-	let frame_count = main_image.len() as u32;
+	let frame_count = main_images.len() as u32;
 	let minimum_mip_count = images.len() as u32 - 1;
 	let compression_ratio = if is_transparent { 1.0 } else { 0.5 };
 
-	let l_res_target = if minimum_mip_count == 0 { 1024 } else { lowest_mip_resolution };
 	let ((l_res_lower, l_res_greater), mip_count) = find_lresolution(
 		frame_count,
 		minimum_mip_count,
-		l_res_target,
+		lowest_mip_resolution.unwrap_or(max(main_first_frame.width(), main_first_frame.height())),
 		compression_ratio,
 		size_limit * 1024,
 	)
 		.ok_or_eyre("No possible resolution for given parameters")?;
-	
-	let (target_l_width, target_l_height) = if main_image[0].width() <= main_image[0].height() {
+
+	let (target_l_width, target_l_height) = if main_first_frame.width() <= main_first_frame.height() {
 		(l_res_greater, l_res_lower)
 	} else {
 		(l_res_lower, l_res_greater)

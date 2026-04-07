@@ -8,7 +8,9 @@ use notify::event::{ModifyKind, RenameMode};
 use notify::{EventKind, RecursiveMode, Watcher};
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::num::NonZero;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::mpsc::channel;
 use walkdir::WalkDir;
 
@@ -27,8 +29,9 @@ pub enum Cli {
 		recursive: bool,
 
 		/// The resolution of the smallest mipmap that should be required.
-		#[bpaf(argument("lowest-mip-resolution"), fallback(32), display_fallback)]
-		lowest_mip_resolution: u32,
+		/// If left on 'Infer', uses 32 if at least one mip specified, else 'none'. 
+		#[bpaf(argument("lowest-mip-resolution"), fallback(LMipResOption::Infer), debug_fallback)]
+		lowest_mip_resolution: LMipResOption,
 
 		/// Maximum allowed file size in KiB
 		#[bpaf(argument("size-limit"), fallback(512), display_fallback)]
@@ -45,42 +48,70 @@ pub enum Cli {
 	#[bpaf(command)]
 	/// Process individual images into a VTF spray
 	CompileManual {
-		/// Path to image file for mip level 1.
-		#[bpaf(argument("mip1"), many)]
-		mip1: Vec<PathBuf>,
-
-		/// Path to image file for mip level 2.
-		#[bpaf(argument("mip2"), many)]
-		mip2: Vec<PathBuf>,
-
-		/// Path to image file for mip level 3.
-		#[bpaf(argument("mip3"), many)]
-		mip3: Vec<PathBuf>,
-
-		/// Path to image file for mip level 4.
-		#[bpaf(argument("mip4"), many)]
-		mip4: Vec<PathBuf>,
-
-		/// Path to image file for mip level 5.
-		#[bpaf(argument("mip5"), many)]
-		mip5: Vec<PathBuf>,
+		#[bpaf(external(mip), many)]
+		mips: Vec<Mip>,
 
 		/// The resolution of the smallest mipmap that should be required.
-		#[bpaf(argument("lowest-mip-resolution"), fallback(32), display_fallback)]
-		lowest_mip_resolution: u32,
+		/// If left on 'Infer', uses 32 if at least one mip specified, else 'none'. 
+		#[bpaf(argument("lowest-mip-resolution"), fallback(LMipResOption::Infer), debug_fallback)]
+		lowest_mip_resolution: LMipResOption,
 
 		/// Maximum allowed file size in KiB
 		#[bpaf(argument("size-limit"), fallback(512), display_fallback)]
 		size_limit: u32,
 
 		/// Where to write the vtf file
-		#[bpaf(positional("OUTPUT"))]
-		output: PathBuf,
+		#[bpaf(positional("VTF"))]
+		output_file: PathBuf,
 
 		/// Path to image file. Multiple in case of animation.
-		#[bpaf(positional("INPUT_FILES"), some("At least one input file is required"))]
+		#[bpaf(positional("IMAGE"), some("At least one input file is required"))]
 		input_files: Vec<PathBuf>,
 	},
+}
+
+#[derive(Debug, Copy, Clone, Bpaf)]
+// #[bpaf(enum)]
+pub enum LMipResOption {
+	Infer,
+	None,
+	Resolution(u32),
+}
+
+impl FromStr for LMipResOption {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s.to_ascii_lowercase().as_str() { 
+			"infer" => Ok(LMipResOption::Infer),
+			"none" => Ok(LMipResOption::None),
+			_ => s.parse::<u32>()
+				.map(|res| LMipResOption::Resolution(res))
+				.map_err(|_| format!("Expected 'infer', 'none' or number. Got {}", s).to_string())
+		}
+	}
+}
+
+impl LMipResOption {
+	pub fn infer(&self, infer_none: bool) -> Option<u32> {
+		match self {
+			LMipResOption::Infer => if infer_none { None } else { Some(32) },
+			LMipResOption::None => None,
+			LMipResOption::Resolution(res) => Some(*res),
+		}
+	}
+}
+
+
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(adjacent)]
+pub struct Mip {
+	/// The MIP level
+	#[bpaf(long("mip"), argument("N"))]
+	level: NonZero<usize>,
+	/// The image file path for this mip level. Multiple in case of animation.
+	#[bpaf(positional("IMAGE"), some("At least one input file is required"))]
+	input_files: Vec<PathBuf>,
 }
 
 pub fn run() -> eyre::Result<()> {
@@ -88,41 +119,32 @@ pub fn run() -> eyre::Result<()> {
 
 	match cli {
 		Cli::CompileManual {
-			output,
-			input_files,
-			mip1,
-			mip2,
-			mip3,
-			mip4,
-			mip5,
+			mips,
 			lowest_mip_resolution,
 			size_limit,
+			output_file,
+			input_files,
 		} => {
-			// Helper to translate empty bpaf vecs back into Options for our core logic
-			let to_opt = |v: Vec<PathBuf>| if v.is_empty() { None } else { Some(v) };
-
-			let mips = vec![
-				Some(input_files.clone()),
-				to_opt(mip1),
-				to_opt(mip2),
-				to_opt(mip3),
-				to_opt(mip4),
-				to_opt(mip5)
-			];
-
 			for (i, mip) in mips.iter().enumerate().skip(1) {
-				if let Some(m) = mip {
-					if m.len() != input_files.len() {
-						eprintln!("Numbers of frames in mip {} must match number of frames of mip 0", i);
-						std::process::exit(1);
-					}
+				if mip.input_files.len() != input_files.len() {
+					eprintln!("Numbers of frames in mip {} must match number of frames of mip 0", i);
+					std::process::exit(1);
 				}
 			}
 
-			// Slice trailing nones
-			let mut paths = mips;
-			while let Some(None) = paths.last() {
-				paths.pop();
+			let max_mip = mips.iter()
+				.map(|m| m.level.get())
+				.max()
+				.unwrap_or(0);
+			
+			let mut paths = vec![None; max_mip + 1];
+			paths[0] = Some(input_files);
+			for mip in mips {
+				let level = mip.level.get();
+				if paths[level].replace(mip.input_files).is_some() {
+					eprintln!("Mip {} is specified multiple times. Must be unique", mip.level);
+					std::process::exit(1);
+				}
 			}
 
 			let images: Vec<_> = paths.into_iter()
@@ -133,17 +155,17 @@ pub fn run() -> eyre::Result<()> {
 					.transpose())
 				.collect::<Result<_, _>>()?;
 			
-			let file = File::create(&output)
+			let file = File::create(&output_file)
 				.wrap_err("Failed to create vtf file")?;
 
 			let mut writer = BufWriter::new(file);
-
+			
 			write_vtf(
 				&mut writer,
 				&images.iter()
 					.map(|frames| frames.as_deref())
 					.collect::<Vec<_>>(),
-				lowest_mip_resolution,
+				lowest_mip_resolution.infer(images.len() == 1),
 				size_limit,
 			)
 				.wrap_err("Failed to write vtf file")?;
@@ -215,7 +237,7 @@ pub fn run() -> eyre::Result<()> {
 				let vtf_path = if recursive {
 					&path_vtf_for_def(path, &input_path, &output_path)
 				} else {
-					if (path != input_path) {
+					if path != input_path {
 						return
 					}
 					&output_path
