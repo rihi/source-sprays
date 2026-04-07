@@ -172,27 +172,30 @@ pub fn run() -> eyre::Result<()> {
 					std::process::exit(1);
 				}
 			}
+			
+			let process_whole = || {
+				if recursive {
+					for entry in WalkDir::new(&input_path) {
+						let entry = match entry {
+							Ok(entry) => entry,
+							Err(e) => {
+								eprintln!("Warning: Skipping entry: {:?}", e);
+								continue
+							}
+						};
 
-			if recursive {
-				for entry in WalkDir::new(&input_path) {
-					let entry = match entry {
-						Ok(entry) => entry,
-						Err(e) => {
-							eprintln!("Warning: Skipping entry: {:?}", e);
-							continue
+						if is_spray_def(entry.path()) {
+							let vtf_path = path_vtf_for_def(entry.path(), &input_path, &output_path);
+							compile_spray_def(entry.path(), &vtf_path, lowest_mip_resolution, size_limit);
 						}
-					};
-					
-					if is_spray_def(entry.path()) {
-						let vtf_path = path_vtf_for_def(entry.path(), &input_path, &output_path);
-						compile_spray_def(entry.path(), &vtf_path, lowest_mip_resolution, size_limit);
 					}
+				} else {
+					compile_spray_def(&input_path, &output_path, lowest_mip_resolution, size_limit);
 				}
-			} else {
-				compile_spray_def(&input_path, &output_path, lowest_mip_resolution, size_limit);
-			}
+			};
 
 			if !watch_changes {
+				process_whole();
 				return Ok(());
 			}
 
@@ -240,6 +243,8 @@ pub fn run() -> eyre::Result<()> {
 				// }
 			};
 			
+			process_whole();
+			
 			for res in rx {
 				let event = match res {
 					Ok(event) => event,
@@ -248,6 +253,11 @@ pub fn run() -> eyre::Result<()> {
 						continue;
 					},
 				};
+				
+				if event.need_rescan() {
+					process_whole();
+					continue
+				}
 				
 				println!("-----------");
 				println!("{:?}", &event);
