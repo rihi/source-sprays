@@ -1,8 +1,8 @@
-use std::cmp::max;
 use crate::image_util::{compress, has_transparency, resize};
 use color_eyre::eyre;
 use color_eyre::eyre::{OptionExt, WrapErr};
 use image::RgbaImage;
+use std::cmp::max;
 use std::io::Write;
 
 #[derive(Copy, Clone, Debug)]
@@ -31,11 +31,16 @@ pub fn write_vtf<'a>(
 	let texture_format = if is_transparent { TextureFormat::Bc3 } else { TextureFormat::Bc1 };
 	let frame_count = main_images.len() as u32;
 	let minimum_mip_count = images.len() as u32 - 1;
+	let maximum_mip_count = match lowest_mip_resolution {
+		None => Some(minimum_mip_count),
+		Some(_) => None
+	};
 	let compression_ratio = if is_transparent { 1.0 } else { 0.5 };
 
 	let ((l_res_lower, l_res_greater), mip_count) = find_lresolution(
 		frame_count,
 		minimum_mip_count,
+		maximum_mip_count,
 		lowest_mip_resolution.unwrap_or(max(main_first_frame.width(), main_first_frame.height())),
 		compression_ratio,
 		size_limit * 1024,
@@ -179,26 +184,31 @@ fn max_mip_count(
 fn find_lresolution(
 	frame_count: u32,
 	minimum_mip_count: u32,
-	maximum_lresolution: u32,
+	maximum_mip_count: Option<u32>,
+	maximum_l_resolution: u32,
 	compression_ratio: f32,
 	size_limit: u32,
 ) -> Option<((u32, u32), u32)> {
-	let (res0, _) = (0..(maximum_lresolution / 4))
+	let maximum_mip_count = maximum_mip_count.unwrap_or(u32::MAX);
+	
+	let (res0, _) = (0..(maximum_l_resolution / 4))
 		.map(|res| (res + 1) * 4)
 		.filter_map(|res| {
 			let mip_count = max_mip_count(res, res, frame_count, compression_ratio, size_limit)?;
 			Some((res, mip_count))
 		})
 		.filter(|&(_, m)| m >= minimum_mip_count)
+		.map(|(r, m)| (r, m.min(maximum_mip_count)))
 		.max_by_key(|&(r, m)| (r * r * 4u32.pow(m), m as i32 * -1))?;
 	
-	let (res1, mip_count1) = (0..(maximum_lresolution / 4))
+	let (res1, mip_count1) = (0..(maximum_l_resolution / 4))
 		.map(|res| (res + 1) * 4)
 		.filter_map(|res| {
 			let mip_count = max_mip_count(res0, res, frame_count, compression_ratio, size_limit)?;
 			Some((res, mip_count))
 		})
 		.filter(|&(_, m)| m >= minimum_mip_count)
+		.map(|(r, m)| (r, m.min(maximum_mip_count)))
 		.max_by_key(|&(r, m)| (res0 * r * 4u32.pow(m), m))?;
 
 	Some(if res0 < res1 {
