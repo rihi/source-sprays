@@ -111,7 +111,7 @@ pub fn convert_folder(
 	}
 
 	if !image_paths.contains_key(&(0, 0)) {
-		return Err(eyre!("Dictionary has no mip0 frame0"));
+		return Err(eyre!("Spray definition is missing mip0 frame0"));
 	}
 
 	let max_mip = image_paths.keys().map(|&(m, _)| m).max().unwrap_or(0);
