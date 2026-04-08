@@ -9,5 +9,6 @@ mod vtf;
 mod watching;
 
 fn main() -> eyre::Result<()> {
+    color_eyre::install()?;
     cli::run()
 }
