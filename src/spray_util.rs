@@ -154,8 +154,8 @@ pub fn convert_folder(
 
 pub fn load_image(file: &Path) -> eyre::Result<DynamicImage> {
 	let img = ImageReader::open(file)
-		.wrap_err_with(|| format!("Failed to load image {}", file.display()))?
+		.wrap_err_with(|| format!("Failed to load image '{}'", file.display()))?
 		.decode()
-		.wrap_err_with(|| format!("Failed to decode image {}", file.display()))?;
+		.wrap_err_with(|| format!("Failed to decode image '{}'", file.display()))?;
 	Ok(img)
 }
