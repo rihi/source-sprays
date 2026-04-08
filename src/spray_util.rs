@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::{File, FileTimes};
 use std::io::{BufWriter, Write};
-use std::os::windows::fs::FileTimesExt;
 use std::path::{Path, PathBuf};
 use crate::cli::LMipResOption;
 
@@ -44,10 +43,16 @@ pub fn convert_generic(
 	let creation_time = metadata.created()
 		.wrap_err("Failed to copy metadata information for created file")?;
 
-	file.set_times(FileTimes::new()
-		.set_created(creation_time)
+	let mut times = FileTimes::new()
 		.set_modified(creation_time)
-		.set_accessed(creation_time))
+		.set_accessed(creation_time);
+	#[cfg(windows)]
+	{
+		use std::os::windows::fs::FileTimesExt;
+		times = times.set_created(creation_time);
+	}
+	
+	file.set_times(times)
 		.wrap_err("Failed to copy metadata information for created file")?;
 	
 	Ok(())
