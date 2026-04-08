@@ -190,7 +190,7 @@ pub fn run() -> eyre::Result<()> {
 					std::process::exit(1);
 				}
 				if !output_path.is_dir() {
-					eprintln!("input_path is not a directory, required for recursive");
+					eprintln!("output_path is not a directory, required for recursive");
 					std::process::exit(1);
 				}
 			}
