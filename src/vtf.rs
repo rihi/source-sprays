@@ -35,15 +35,15 @@ pub fn write_vtf<'a>(
 		None => Some(minimum_mip_count),
 		Some(_) => None
 	};
-	let compression_ratio = if is_transparent { 1.0 } else { 0.5 };
+	let compression_denominator = if is_transparent { 1 } else { 2 };
 
 	let ((l_res_lower, l_res_greater), mip_count) = find_lresolution(
 		frame_count,
 		minimum_mip_count,
 		maximum_mip_count,
 		lowest_mip_resolution.unwrap_or(max(main_first_frame.width(), main_first_frame.height())),
-		compression_ratio,
-		size_limit * 1024,
+		compression_denominator,
+		(size_limit * 1024) as u64,
 	)
 		.ok_or_eyre("No possible resolution for given parameters")?;
 
@@ -158,24 +158,29 @@ fn file_size(
 	height: u32,
 	frame_count: u32,
 	mip_count: u32,
-	compression_ratio: f32
-) -> u32 {
-	let frame_count = frame_count as f32;
-	let width = width as f32;
-	let height = height as f32;
-	88 + (frame_count * (1.0 / 3.0) * compression_ratio * ((4u32.pow(mip_count + 1) - 1) as f32) * width * height) as u32
+	compression_denominator: u32
+) -> u64 {
+	// Calculate the geometric sum for mipmaps: (4^(n+1) - 1) / 3
+	let mip_factor = (4u64.pow(mip_count + 1) - 1) / 3;
+
+	let w = width as u64;
+	let h = height as u64;
+	let f = frame_count as u64;
+	let cr = compression_denominator as u64;
+
+	88 + (f * mip_factor * w * h) / cr
 }
 
 fn max_mip_count(
 	width: u32,
 	height: u32,
 	frame_count: u32,
-	compression_ratio: f32,
-	size_limit: u32
+	compression_denominator: u32,
+	size_limit: u64
 ) -> Option<u32> {
 	(0..)
 		.take_while(|&mip_count| {
-			let file_size = file_size(width, height, frame_count, mip_count, compression_ratio);
+			let file_size = file_size(width, height, frame_count, mip_count, compression_denominator);
 			file_size <= size_limit
 		})
 		.last()
@@ -186,15 +191,15 @@ fn find_lresolution(
 	minimum_mip_count: u32,
 	maximum_mip_count: Option<u32>,
 	maximum_l_resolution: u32,
-	compression_ratio: f32,
-	size_limit: u32,
+	compression_denominator: u32,
+	size_limit: u64,
 ) -> Option<((u32, u32), u32)> {
 	let maximum_mip_count = maximum_mip_count.unwrap_or(u32::MAX);
 	
 	let (res0, _) = (0..(maximum_l_resolution / 4))
 		.map(|res| (res + 1) * 4)
 		.filter_map(|res| {
-			let mip_count = max_mip_count(res, res, frame_count, compression_ratio, size_limit)?;
+			let mip_count = max_mip_count(res, res, frame_count, compression_denominator, size_limit)?;
 			Some((res, mip_count))
 		})
 		.filter(|&(_, m)| m >= minimum_mip_count)
@@ -204,7 +209,7 @@ fn find_lresolution(
 	let (res1, mip_count1) = (0..(maximum_l_resolution / 4))
 		.map(|res| (res + 1) * 4)
 		.filter_map(|res| {
-			let mip_count = max_mip_count(res0, res, frame_count, compression_ratio, size_limit)?;
+			let mip_count = max_mip_count(res0, res, frame_count, compression_denominator, size_limit)?;
 			Some((res, mip_count))
 		})
 		.filter(|&(_, m)| m >= minimum_mip_count)
