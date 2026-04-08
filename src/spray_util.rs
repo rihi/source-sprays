@@ -98,7 +98,7 @@ pub fn convert_folder(
 		let Some(filename) = path.file_name() else { continue };
 		let filename = filename.to_string_lossy();
 		let capture = regex_captures!(r"^(mip(\d+))?(frame(\d+))?\..*", &filename);
-		if let Some((_, _, mip, _, frame)) = capture && mip.is_empty() != frame.is_empty() {
+		if let Some((_, _, mip, _, frame)) = capture && !(mip.is_empty() && frame.is_empty()) {
 			let parse_number = |str: &str| Some(str)
 				.filter(|s| !s.is_empty())
 				.map(|s| s.parse::<u32>())
