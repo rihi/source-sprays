@@ -60,13 +60,13 @@ pub enum Cli {
 		#[bpaf(argument("value"), fallback(512), display_fallback)]
 		size_limit: u32,
 
-		/// Where to write the vtf file
-		#[bpaf(positional("VTF"))]
-		output_file: PathBuf,
-
 		/// Path to image file. Multiple in case of animation.
 		#[bpaf(positional("IMAGE"), some("At least one input file is required"))]
 		input_files: Vec<PathBuf>,
+
+		/// Where to write the vtf file
+		#[bpaf(positional("VTF"))]
+		output_file: PathBuf,
 	},
 }
 
