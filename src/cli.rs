@@ -8,7 +8,6 @@ use notify::event::{ModifyKind, RenameMode};
 use notify::{EventKind, RecursiveMode, Watcher};
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::num::NonZero;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc::channel;
@@ -51,6 +50,10 @@ pub enum Cli {
 		#[bpaf(external(mip), many)]
 		mips: Vec<Mip>,
 
+		/// Where to write the vtf file
+		#[bpaf(argument("file"))]
+		output: PathBuf,
+
 		/// The resolution of the smallest mipmap that should be required.
 		/// If left on 'Infer', uses 32 if at least one mip specified, else 'none'. 
 		#[bpaf(argument("value"), fallback(LMipResOption::Infer), debug_fallback)]
@@ -59,14 +62,6 @@ pub enum Cli {
 		/// Maximum allowed file size in KiB
 		#[bpaf(argument("value"), fallback(512), display_fallback)]
 		size_limit: u32,
-
-		/// Path to image file. Multiple in case of animation.
-		#[bpaf(positional("IMAGE"), some("At least one input file is required"))]
-		input_files: Vec<PathBuf>,
-
-		/// Where to write the vtf file
-		#[bpaf(positional("VTF"))]
-		output_file: PathBuf,
 	},
 }
 
@@ -108,7 +103,7 @@ impl LMipResOption {
 pub struct Mip {
 	/// The MIP level
 	#[bpaf(long("mip"), argument("N"))]
-	level: NonZero<usize>,
+	level: usize,
 	/// The image file path for this mip level. Multiple in case of animation.
 	#[bpaf(positional("IMAGE"), some("At least one input file is required"))]
 	input_files: Vec<PathBuf>,
@@ -120,29 +115,31 @@ pub fn run() -> eyre::Result<()> {
 	match cli {
 		Cli::CompileManual {
 			mips,
+			output,
 			lowest_mip_resolution,
 			size_limit,
-			output_file,
-			input_files,
 		} => {
-			for (i, mip) in mips.iter().enumerate().skip(1) {
-				if mip.input_files.len() != input_files.len() {
-					eprintln!("Numbers of frames in mip {} must match number of frames of mip 0", i);
-					std::process::exit(1);
-				}
-			}
-
 			let max_mip = mips.iter()
-				.map(|m| m.level.get())
+				.map(|m| m.level)
 				.max()
 				.unwrap_or(0);
 			
 			let mut paths = vec![None; max_mip + 1];
-			paths[0] = Some(input_files);
 			for mip in mips {
-				let level = mip.level.get();
-				if paths[level].replace(mip.input_files).is_some() {
+				if paths[mip.level].replace(mip.input_files).is_some() {
 					eprintln!("Mip {} is specified multiple times. Must be unique", mip.level);
+					std::process::exit(1);
+				}
+			}
+			
+			let Some(first_mip) = &paths[0] else {
+				eprintln!("Mip 0 is missing");
+				std::process::exit(1);
+			};
+			
+			for (i, mip) in paths.iter().enumerate().skip(1) {
+				if let Some(frames) = mip && frames.len() != first_mip.len() {
+					eprintln!("Numbers of frames in mip{}({}) must match number of frames of mip0({})", i, frames.len(), first_mip.len());
 					std::process::exit(1);
 				}
 			}
@@ -155,7 +152,7 @@ pub fn run() -> eyre::Result<()> {
 					.transpose())
 				.collect::<Result<_, _>>()?;
 			
-			let file = File::create(&output_file)
+			let file = File::create(&output)
 				.wrap_err("Failed to create vtf file")?;
 
 			let mut writer = BufWriter::new(file);
