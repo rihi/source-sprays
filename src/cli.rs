@@ -1,5 +1,7 @@
+use crate::crc32_writer::Crc32Writer;
 use crate::spray_util::load_image;
-use crate::vtf::write_vtf;
+use crate::thumbnail::{thumbnail_animation, thumbnail_mips};
+use crate::vtf::{read_vtf, write_vtf};
 use crate::watching::{compile_spray_def, delete_spray_def, is_spray_def, path_vtf_for_def};
 use bpaf::Bpaf;
 use color_eyre::eyre;
@@ -7,11 +9,12 @@ use color_eyre::eyre::WrapErr;
 use notify::event::{ModifyKind, RenameMode};
 use notify::{EventKind, RecursiveMode, Watcher};
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc::channel;
 use walkdir::WalkDir;
+use crate::crc32_inverse::crc32_patch;
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options, version)]
@@ -63,6 +66,21 @@ pub enum Cli {
 		#[bpaf(argument("value"), fallback(512), display_fallback)]
 		size_limit: u32,
 	},
+	#[bpaf(command)]
+	/// Derive vtf file from input that has the same crc32
+	DeriveLowRes {
+		/// Maximum allowed file size in KiB
+		#[bpaf(argument("value"), fallback(512), display_fallback)]
+		size_limit: u32,
+
+		/// Input vtf path
+		#[bpaf(positional("INPUT_PATH"))]
+		input_path: PathBuf,
+
+		/// Output vtf path
+		#[bpaf(positional("OUTPUT_PATH"))]
+		output_path: PathBuf,
+	}
 }
 
 #[derive(Debug, Copy, Clone, Bpaf)]
@@ -119,6 +137,8 @@ pub fn run() -> eyre::Result<()> {
 			lowest_mip_resolution,
 			size_limit,
 		} => {
+			let size_limit = size_limit as u64 * 1024;
+			
 			let max_mip = mips.iter()
 				.map(|m| m.level)
 				.max()
@@ -181,6 +201,8 @@ pub fn run() -> eyre::Result<()> {
 			input_path,
 			output_path,
 		} => {
+			let size_limit = size_limit as u64 * 1024;
+			
 			if recursive {
 				if !input_path.is_dir() {
 					eprintln!("input_path is not a directory, required for recursive");
@@ -306,6 +328,58 @@ pub fn run() -> eyre::Result<()> {
 					_ => {}
 				}
 			}
+			
+			Ok(())
+		},
+		Cli::DeriveLowRes {
+			size_limit,
+			input_path,
+			output_path,
+		} => {
+			let size_limit = size_limit as u64 * 1024;
+			
+			let input_bytes = std::fs::read(&input_path)
+				.wrap_err("Failed to read input vtf file")?;
+
+			let mut cursor = Cursor::new(&input_bytes); 
+			
+			let vtf = read_vtf(&mut cursor)
+				.wrap_err("Error reading vtf")?;
+			
+			let treat_as_square = true;
+			let thumbnail = match vtf.frame_count {
+				1 => thumbnail_mips(&vtf, treat_as_square),
+				_ => thumbnail_animation(&vtf, treat_as_square)
+			};
+			
+
+			let output_file = File::create(&output_path)
+				.wrap_err("Failed to open output vtf file")?;
+
+			let buf_writer = BufWriter::new(output_file);
+			let mut writer = Crc32Writer::new(buf_writer);
+
+			write_vtf(
+				&mut writer,
+				&[Some(&vec![thumbnail])],
+				None,
+				size_limit - 4, // subtract 4 bytes for crc padding
+			)
+				.wrap_err("Failed to write vtf file")?;
+
+			let target_hash = crc32fast::hash(&input_bytes);
+			let current_hash = writer.finalize();
+
+			let padding = crc32_patch(current_hash, target_hash);
+			writer.write_all(&padding)
+				.wrap_err("Failed to write crc32 padding")?;
+
+			let new_hash = writer.finalize();
+			
+			writer.flush()
+				.wrap_err("Error while flushing file writer")?;
+
+			assert_eq!(new_hash, target_hash);
 			
 			Ok(())
 		}

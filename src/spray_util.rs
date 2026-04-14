@@ -16,7 +16,7 @@ pub fn convert_generic(
 	input_path: &Path,
 	output_file: &Path,
 	lowest_mip_resolution: Option<u32>,
-	size_limit: u32,
+	size_limit: u64,
 ) -> eyre::Result<()> {
 	if let Some(parent) = output_file.parent() {
 		std::fs::create_dir_all(parent)
@@ -62,7 +62,7 @@ pub fn convert_file(
 	input_file: &Path,
 	output_file: &Path,
 	lowest_mip_resolution: Option<u32>,
-	size_limit: u32,
+	size_limit: u64,
 ) -> eyre::Result<()> {
 	let image = load_image(input_file)?
 		.into_rgba8();
@@ -80,7 +80,7 @@ pub fn convert_folder(
 	input_dir: &Path,
 	output_file: &Path,
 	lowest_mip_resolution: LMipResOption,
-	size_limit: u32,
+	size_limit: u64,
 ) -> eyre::Result<()> {
 	let mut image_paths: HashMap<(u32, u32), PathBuf> = HashMap::new();
 

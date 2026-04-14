@@ -64,3 +64,19 @@ pub fn compress(
 	
 	output
 }
+
+pub fn decompress(
+	width: u32,
+	height: u32,
+	format: TextureFormat,
+	data: &[u8],
+) -> RgbaImage {
+	let format = match format {
+		TextureFormat::Bc1 => texpresso::Format::Bc1,
+		TextureFormat::Bc3 => texpresso::Format::Bc3,
+	};
+
+	let mut image = RgbaImage::new(width, height);
+	format.decompress(data, width as usize, height as usize, &mut image);
+	return image;
+}

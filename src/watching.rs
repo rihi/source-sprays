@@ -39,7 +39,7 @@ pub fn compile_spray_def(
 	def_path: &Path,
 	vtf_path: &Path,
 	lowest_mip_resolution: LMipResOption,
-	size_limit: u32,
+	size_limit: u64,
 ) {
 	if def_path.is_file() {
 		println!("Info: Compiling file spray def {} to {}", def_path.display(), vtf_path.display());

@@ -1078,11 +1078,13 @@ version = "0.1.0"
 dependencies = [
  "bpaf",
  "color-eyre",
+ "crc32fast",
  "image",
  "itertools",
  "lazy-regex",
  "notify",
  "texpresso",
+ "thiserror",
  "walkdir",
 ]
 
