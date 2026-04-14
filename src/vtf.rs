@@ -11,11 +11,9 @@ pub enum TextureFormat {
 	Bc3,
 }
 
-pub fn write_vtf<'a>(
+pub fn write_vtf(
 	mut dest: impl Write,
 	images: &[Option<&[RgbaImage]>], 
-	// images: impl Into<Vec<Option<&'a [DynamicImage]>>>, 
-	// images: &mut Vec<Option<Vec<DynamicImage>>>,
 	lowest_mip_resolution: Option<u32>,
 	size_limit: u32,
 ) -> eyre::Result<()> {
