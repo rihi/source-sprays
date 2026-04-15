@@ -171,17 +171,13 @@ pub fn write_vtf(
 	let texture_format = if is_transparent { TextureFormat::Bc3 } else { TextureFormat::Bc1 };
 	let frame_count = main_images.len() as u32;
 	let minimum_mip_count = images.len() as u32 - 1;
-	let maximum_mip_count = match lowest_mip_resolution {
-		None => Some(minimum_mip_count),
-		Some(_) => None
-	};
 	let compression_denominator = if is_transparent { 1 } else { 2 };
 
 	let ((l_res_lower, l_res_greater), mip_count) = find_lresolution(
 		frame_count,
 		minimum_mip_count,
-		maximum_mip_count,
-		lowest_mip_resolution.unwrap_or(max(main_first_frame.width(), main_first_frame.height())),
+		lowest_mip_resolution,
+		max(main_first_frame.width(), main_first_frame.height()),
 		compression_denominator,
 		size_limit,
 	)
@@ -311,50 +307,68 @@ fn file_size(
 	88 + (f * mip_factor * w * h) / cr
 }
 
-fn max_mip_count(
+fn mip_counts(
 	width: u32,
 	height: u32,
 	frame_count: u32,
 	compression_denominator: u32,
 	size_limit: u64
-) -> Option<u32> {
+) -> impl Iterator<Item=u32> {
 	(0..)
-		.take_while(|&mip_count| {
+		.take_while(move |&mip_count| {
 			let file_size = file_size(width, height, frame_count, mip_count, compression_denominator);
 			file_size <= size_limit
 		})
-		.last()
 }
 
 fn find_lresolution(
 	frame_count: u32,
 	minimum_mip_count: u32,
-	maximum_mip_count: Option<u32>,
-	maximum_l_resolution: u32,
+	maximum_l_resolution: Option<u32>,
+	desired_resolution: u32,
 	compression_denominator: u32,
 	size_limit: u64,
 ) -> Option<((u32, u32), u32)> {
-	let maximum_mip_count = maximum_mip_count.unwrap_or(u32::MAX);
-	
-	let (res0, _) = (0..(maximum_l_resolution / 4))
+	let maximum_l_resolution = maximum_l_resolution.unwrap_or(u32::MAX);
+	let (res0, _mip_count0) = (0..(maximum_l_resolution / 4))
 		.map(|res| (res + 1) * 4)
-		.filter_map(|res| {
-			let mip_count = max_mip_count(res, res, frame_count, compression_denominator, size_limit)?;
-			Some((res, mip_count))
+		.map_while(|res| {
+			let mut iter = mip_counts(res, res, frame_count, compression_denominator, size_limit)
+				.filter(|&mip_count| mip_count >= minimum_mip_count)
+				.map(move |mip_count| (res, mip_count))
+				.peekable();
+
+			iter.peek()?;
+			Some(iter)
 		})
-		.filter(|&(_, m)| m >= minimum_mip_count)
-		.map(|(r, m)| (r, m.min(maximum_mip_count)))
-		.max_by_key(|&(r, m)| (r * r * 4u32.pow(m), m as i32 * -1))?;
+		.flatten()
+		.max_by_key(|&(r, m)| {
+			let pixel_count = r * r * 4u32.pow(m);
+			match r * 2u32.pow(m) >= desired_resolution {
+				false => (false, pixel_count, u32::MAX - m),
+				true => (true, u32::MAX - pixel_count, u32::MAX - m),
+			}
+		})?;
 	
 	let (res1, mip_count1) = (0..(maximum_l_resolution / 4))
 		.map(|res| (res + 1) * 4)
-		.filter_map(|res| {
-			let mip_count = max_mip_count(res0, res, frame_count, compression_denominator, size_limit)?;
-			Some((res, mip_count))
+		.map_while(|res| {
+			let mut iter = mip_counts(res0, res, frame_count, compression_denominator, size_limit)
+				.filter(|&mip_count| mip_count >= minimum_mip_count)
+				.map(move |mip_count| (res, mip_count))
+				.peekable();
+			
+			iter.peek()?;
+			Some(iter)
 		})
-		.filter(|&(_, m)| m >= minimum_mip_count)
-		.map(|(r, m)| (r, m.min(maximum_mip_count)))
-		.max_by_key(|&(r, m)| (res0 * r * 4u32.pow(m), m))?;
+		.flatten()
+		.max_by_key(|&(r, m)| {
+			let pixel_count = res0 * r * 4u32.pow(m);
+			match r * 2u32.pow(m) >= desired_resolution {
+				false => (false, pixel_count, u32::MAX - m),
+				true => (true, u32::MAX - pixel_count, u32::MAX - m),
+			}
+		})?;
 
 	Some(if res0 < res1 {
 		((res0, res1), mip_count1)
