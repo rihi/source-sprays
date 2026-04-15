@@ -227,11 +227,11 @@ pub fn run() -> eyre::Result<()> {
 
 						if is_spray_def(entry.path()) {
 							let vtf_path = path_vtf_for_def(entry.path(), &input_path, &output_path);
-							compile_spray_def(entry.path(), &vtf_path, lowest_mip_resolution, size_limit);
+							compile_spray_def(entry.path(), &vtf_path, lowest_mip_resolution, size_limit, recursive);
 						}
 					}
 				} else {
-					compile_spray_def(&input_path, &output_path, lowest_mip_resolution, size_limit);
+					compile_spray_def(&input_path, &output_path, lowest_mip_resolution, size_limit, recursive);
 				}
 			};
 
@@ -261,7 +261,7 @@ pub fn run() -> eyre::Result<()> {
 					}
 					&output_path
 				};
-				compile_spray_def(path, vtf_path, lowest_mip_resolution, size_limit);
+				compile_spray_def(path, vtf_path, lowest_mip_resolution, size_limit, recursive);
 			};
 			let on_file_new_data = |path: &Path| {
 				compile_potential_def(path);

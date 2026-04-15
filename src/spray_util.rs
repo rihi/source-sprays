@@ -17,6 +17,7 @@ pub fn convert_generic(
 	output_file: &Path,
 	lowest_mip_resolution: Option<u32>,
 	size_limit: u64,
+	copy_metadata: bool,
 ) -> eyre::Result<()> {
 	if let Some(parent) = output_file.parent() {
 		std::fs::create_dir_all(parent)
@@ -37,23 +38,25 @@ pub fn convert_generic(
 	
 	writer.flush()
 		.wrap_err("Error while flushing file writer")?;
-	
-	let metadata = fs::metadata(input_path)
-		.wrap_err("Failed to copy metadata information for created file")?;
-	let creation_time = metadata.created()
-		.wrap_err("Failed to copy metadata information for created file")?;
 
-	let mut times = FileTimes::new()
-		.set_modified(creation_time)
-		.set_accessed(creation_time);
-	#[cfg(windows)]
-	{
-		use std::os::windows::fs::FileTimesExt;
-		times = times.set_created(creation_time);
+	if copy_metadata {
+		let metadata = fs::metadata(input_path)
+			.wrap_err("Failed to copy metadata information for created file")?;
+		let creation_time = metadata.created()
+			.wrap_err("Failed to copy metadata information for created file")?;
+
+		let mut times = FileTimes::new()
+			.set_modified(creation_time)
+			.set_accessed(creation_time);
+		#[cfg(windows)]
+		{
+			use std::os::windows::fs::FileTimesExt;
+			times = times.set_created(creation_time);
+		}
+
+		file.set_times(times)
+			.wrap_err("Failed to copy metadata information for created file")?;
 	}
-	
-	file.set_times(times)
-		.wrap_err("Failed to copy metadata information for created file")?;
 	
 	Ok(())
 }
@@ -63,6 +66,7 @@ pub fn convert_file(
 	output_file: &Path,
 	lowest_mip_resolution: Option<u32>,
 	size_limit: u64,
+	copy_metadata: bool,
 ) -> eyre::Result<()> {
 	let image = load_image(input_file)?
 		.into_rgba8();
@@ -73,6 +77,7 @@ pub fn convert_file(
 		output_file,
 		lowest_mip_resolution,
 		size_limit,
+		copy_metadata
 	)
 }
 
@@ -81,6 +86,7 @@ pub fn convert_folder(
 	output_file: &Path,
 	lowest_mip_resolution: LMipResOption,
 	size_limit: u64,
+	copy_metadata: bool,
 ) -> eyre::Result<()> {
 	let mut image_paths: HashMap<(u32, u32), PathBuf> = HashMap::new();
 
@@ -153,7 +159,8 @@ pub fn convert_folder(
 		input_dir,
 		output_file,
 		lowest_mip_resolution.infer(images.len() == 1),
-		size_limit
+		size_limit,
+		copy_metadata,
 	)
 }
 

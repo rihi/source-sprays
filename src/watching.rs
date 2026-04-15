@@ -40,16 +40,29 @@ pub fn compile_spray_def(
 	vtf_path: &Path,
 	lowest_mip_resolution: LMipResOption,
 	size_limit: u64,
+	copy_metadata: bool,
 ) {
 	if def_path.is_file() {
 		println!("Info: Compiling file spray def {} to {}", def_path.display(), vtf_path.display());
-		if let Err(e) = convert_file(def_path, &vtf_path, lowest_mip_resolution.infer(true), size_limit) {
+		if let Err(e) = convert_file(
+			def_path,
+			&vtf_path,
+			lowest_mip_resolution.infer(true),
+			size_limit,
+			copy_metadata
+		) {
 			eprintln!("Error: Failed convert file def to vtf: {}\n{:?}", def_path.display(), e);
 		}
 	}
 	if def_path.is_dir() {
 		println!("Info: Compiling dir spray def {} to {}", def_path.display(), vtf_path.display());
-		if let Err(e) = convert_folder(def_path, &vtf_path, lowest_mip_resolution, size_limit) {
+		if let Err(e) = convert_folder(
+			def_path,
+			&vtf_path,
+			lowest_mip_resolution,
+			size_limit,
+			copy_metadata
+		) {
 			eprintln!("Error: Failed convert dir def to vtf: {}\n{:?}", vtf_path.display(), e);
 		}
 	}
