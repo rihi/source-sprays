@@ -170,9 +170,11 @@ pub fn write_vtf(
 	let main_first_frame = &main_images[0];
 	
 	let max_images_resolution = images.iter()
-		.flatten()
-		.flat_map(|x| x.iter())
-		.map(|img| max(img.width(), img.height()))
+		.enumerate()
+		.filter_map(|(mip, frames)| frames.map(|f| (mip, f)))
+		.flat_map(|(mip, frames)| frames.iter()
+			.flat_map(|img| [img.width(), img.height()])
+			.map(move |res| res * 2u32.pow(mip as u32)))
 		.max()
 		.unwrap();
 	
