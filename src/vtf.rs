@@ -169,6 +169,13 @@ pub fn write_vtf(
 	let main_images = images[0].unwrap();
 	let main_first_frame = &main_images[0];
 	
+	let max_images_resolution = images.iter()
+		.flatten()
+		.flat_map(|x| x.iter())
+		.map(|img| max(img.width(), img.height()))
+		.max()
+		.unwrap();
+	
 	let texture_format = if is_transparent { TextureFormat::Bc3 } else { TextureFormat::Bc1 };
 	let frame_count = main_images.len() as u32;
 	let minimum_mip_count = images.len() as u32 - 1;
@@ -178,7 +185,7 @@ pub fn write_vtf(
 		frame_count,
 		minimum_mip_count,
 		lowest_mip_resolution,
-		min(max(main_first_frame.width(), main_first_frame.height()), desired_resolution.unwrap_or(u32::MAX)),
+		min(max_images_resolution, desired_resolution.unwrap_or(u32::MAX)),
 		compression_denominator,
 		size_limit,
 	)
