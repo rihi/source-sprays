@@ -1,9 +1,10 @@
 use crate::image_util::{compress, has_transparency, resize};
 use color_eyre::eyre;
-use color_eyre::eyre::{OptionExt, WrapErr};
+use color_eyre::eyre::{eyre, ContextCompat, OptionExt, WrapErr};
 use image::RgbaImage;
 use std::cmp::{max, min};
 use std::io::{Read, Seek, SeekFrom, Write};
+use itertools::Itertools;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -202,7 +203,7 @@ pub fn write_vtf(
 	let target_width = target_l_width << mip_count;
 	let target_height = target_l_height << mip_count;
 	
-	let images = (0..=mip_count as usize)
+	let filled_images = (0..=mip_count as usize)
 		.scan(None, |prev, i| {
 			if let Some(&img) = images.get(i).flatten_ref() {
 				*prev = Some(img);
@@ -214,7 +215,26 @@ pub fn write_vtf(
 	write_vtf_header(&mut dest, target_width, target_height, texture_format, mip_count, frame_count)
 		.wrap_err("Failed to write vtf header")?;
 	
-	for (mip_level, frames) in images.into_iter().enumerate().rev() {
+	let mip_indices: Vec<_> = images.iter()
+		.enumerate()
+		.filter_map(move |(i, img)| img.map(move |_| i))
+		.map(u8::try_from)
+		.try_collect()
+		.wrap_err("Mip index doesn't fit into u8")?;
+	
+	if mip_indices.len() > 14 {
+		return Err(eyre!("More than 14 mips"));
+	}
+	
+	let mut mip_indices_data = [0u8; 16];
+	mip_indices_data[0] = 0; // version
+	mip_indices_data[1] = mip_indices.len() as u8;
+	mip_indices_data[2..(2 + mip_indices.len())].copy_from_slice(&mip_indices);
+	
+	dest.write_all(&mip_indices_data)
+		.wrap_err("Failed to write mip indices")?;
+	
+	for (mip_level, frames) in filled_images.into_iter().enumerate().rev() {
 		let mip_level = mip_level as u32;
 		let w = target_l_width << (mip_count - mip_level);
 		let h = target_l_height << (mip_count - mip_level);
@@ -270,7 +290,7 @@ fn write_vtf_header(
 	dest.write_all(b"VTF\0")?;
 	dest.write_all(&7u32.to_le_bytes())?;
 	dest.write_all(&4u32.to_le_bytes())?;
-	dest.write_all(&88u32.to_le_bytes())?;
+	dest.write_all(&96u32.to_le_bytes())?; // header size
 	dest.write_all(&(width as u16).to_le_bytes())?;
 	dest.write_all(&(height as u16).to_le_bytes())?;
 	dest.write_all(&flags.to_le_bytes())?;
@@ -289,12 +309,14 @@ fn write_vtf_header(
 	dest.write_all(&0u8.to_le_bytes())?; // Low res height
 	dest.write_all(&depth.to_le_bytes())?;
 	dest.write_all(&[0, 0, 0])?;
-	dest.write_all(&1u32.to_le_bytes())?;
+	dest.write_all(&2u32.to_le_bytes())?; // num resources
 	dest.write_all(&[0, 0, 0, 0, 0, 0, 0, 0])?;
 
-	let rsrc_offset = 88u32;
+	dest.write_all(b"SDT\x00")?;
+	dest.write_all(&96u32.to_le_bytes())?;
+	
 	dest.write_all(b"\x30\x00\x00\x00")?;
-	dest.write_all(&rsrc_offset.to_le_bytes())?;
+	dest.write_all(&112u32.to_le_bytes())?;
 	
 	Ok(())
 }
