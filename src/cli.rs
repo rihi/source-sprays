@@ -35,6 +35,10 @@ pub enum Cli {
 		#[bpaf(argument("value"), fallback(LMipResOption::Infer), debug_fallback)]
 		lowest_mip_resolution: LMipResOption,
 
+		/// The desired max resolution. 
+		#[bpaf(argument("value"), fallback(None), debug_fallback)]
+		desired_resolution: Option<u32>,
+
 		/// Maximum allowed file size in KiB
 		#[bpaf(argument("value"), fallback(512), display_fallback)]
 		size_limit: u32,
@@ -61,6 +65,10 @@ pub enum Cli {
 		/// If left on 'Infer', uses 32 if at least one mip specified, else 'none'. 
 		#[bpaf(argument("value"), fallback(LMipResOption::Infer), debug_fallback)]
 		lowest_mip_resolution: LMipResOption,
+		
+		/// The desired max resolution. 
+		#[bpaf(argument("value"), fallback(None), debug_fallback)]
+		desired_resolution: Option<u32>,
 
 		/// Maximum allowed file size in KiB
 		#[bpaf(argument("value"), fallback(512), display_fallback)]
@@ -135,6 +143,7 @@ pub fn run() -> eyre::Result<()> {
 			mips,
 			output,
 			lowest_mip_resolution,
+			desired_resolution,
 			size_limit,
 		} => {
 			let size_limit = size_limit as u64 * 1024;
@@ -183,6 +192,7 @@ pub fn run() -> eyre::Result<()> {
 					.map(|frames| frames.as_deref())
 					.collect::<Vec<_>>(),
 				lowest_mip_resolution.infer(images.len() == 1),
+				desired_resolution,
 				size_limit,
 			)
 				.wrap_err("Failed to write vtf file")?;
@@ -197,6 +207,7 @@ pub fn run() -> eyre::Result<()> {
 			watch_changes,
 			recursive,
 			lowest_mip_resolution,
+			desired_resolution,
 			size_limit,
 			input_path,
 			output_path,
@@ -227,11 +238,11 @@ pub fn run() -> eyre::Result<()> {
 
 						if is_spray_def(entry.path()) {
 							let vtf_path = path_vtf_for_def(entry.path(), &input_path, &output_path);
-							compile_spray_def(entry.path(), &vtf_path, lowest_mip_resolution, size_limit, recursive);
+							compile_spray_def(entry.path(), &vtf_path, lowest_mip_resolution, desired_resolution, size_limit, recursive);
 						}
 					}
 				} else {
-					compile_spray_def(&input_path, &output_path, lowest_mip_resolution, size_limit, recursive);
+					compile_spray_def(&input_path, &output_path, lowest_mip_resolution, desired_resolution, size_limit, recursive);
 				}
 			};
 
@@ -261,7 +272,7 @@ pub fn run() -> eyre::Result<()> {
 					}
 					&output_path
 				};
-				compile_spray_def(path, vtf_path, lowest_mip_resolution, size_limit, recursive);
+				compile_spray_def(path, vtf_path, lowest_mip_resolution, desired_resolution, size_limit, recursive);
 			};
 			let on_file_new_data = |path: &Path| {
 				compile_potential_def(path);
@@ -362,6 +373,7 @@ pub fn run() -> eyre::Result<()> {
 			write_vtf(
 				&mut writer,
 				&[Some(&vec![thumbnail])],
+				None,
 				None,
 				size_limit - 4, // subtract 4 bytes for crc padding
 			)

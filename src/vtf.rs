@@ -2,7 +2,7 @@ use crate::image_util::{compress, has_transparency, resize};
 use color_eyre::eyre;
 use color_eyre::eyre::{OptionExt, WrapErr};
 use image::RgbaImage;
-use std::cmp::max;
+use std::cmp::{max, min};
 use std::io::{Read, Seek, SeekFrom, Write};
 use thiserror::Error;
 
@@ -157,6 +157,7 @@ pub fn write_vtf(
 	mut dest: impl Write,
 	images: &[Option<&[RgbaImage]>], 
 	lowest_mip_resolution: Option<u32>,
+	desired_resolution: Option<u32>,
 	size_limit: u64,
 ) -> eyre::Result<()> {
 	let is_transparent = images.iter()
@@ -177,7 +178,7 @@ pub fn write_vtf(
 		frame_count,
 		minimum_mip_count,
 		lowest_mip_resolution,
-		max(main_first_frame.width(), main_first_frame.height()),
+		min(max(main_first_frame.width(), main_first_frame.height()), desired_resolution.unwrap_or(u32::MAX)),
 		compression_denominator,
 		size_limit,
 	)

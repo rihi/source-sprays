@@ -39,6 +39,7 @@ pub fn compile_spray_def(
 	def_path: &Path,
 	vtf_path: &Path,
 	lowest_mip_resolution: LMipResOption,
+	desired_resolution: Option<u32>,
 	size_limit: u64,
 	copy_metadata: bool,
 ) {
@@ -48,6 +49,7 @@ pub fn compile_spray_def(
 			def_path,
 			&vtf_path,
 			lowest_mip_resolution.infer(true),
+			desired_resolution,
 			size_limit,
 			copy_metadata
 		) {
@@ -60,6 +62,7 @@ pub fn compile_spray_def(
 			def_path,
 			&vtf_path,
 			lowest_mip_resolution,
+			desired_resolution,
 			size_limit,
 			copy_metadata
 		) {

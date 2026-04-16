@@ -16,6 +16,7 @@ pub fn convert_generic(
 	input_path: &Path,
 	output_file: &Path,
 	lowest_mip_resolution: Option<u32>,
+	desired_resolution: Option<u32>,
 	size_limit: u64,
 	copy_metadata: bool,
 ) -> eyre::Result<()> {
@@ -33,6 +34,7 @@ pub fn convert_generic(
 		&mut writer,
 		images,
 		lowest_mip_resolution,
+		desired_resolution,
 		size_limit,
 	)?;
 	
@@ -65,6 +67,7 @@ pub fn convert_file(
 	input_file: &Path,
 	output_file: &Path,
 	lowest_mip_resolution: Option<u32>,
+	desired_resolution: Option<u32>,
 	size_limit: u64,
 	copy_metadata: bool,
 ) -> eyre::Result<()> {
@@ -76,6 +79,7 @@ pub fn convert_file(
 		input_file,
 		output_file,
 		lowest_mip_resolution,
+		desired_resolution,
 		size_limit,
 		copy_metadata
 	)
@@ -85,6 +89,7 @@ pub fn convert_folder(
 	input_dir: &Path,
 	output_file: &Path,
 	lowest_mip_resolution: LMipResOption,
+	desired_resolution: Option<u32>,
 	size_limit: u64,
 	copy_metadata: bool,
 ) -> eyre::Result<()> {
@@ -159,6 +164,7 @@ pub fn convert_folder(
 		input_dir,
 		output_file,
 		lowest_mip_resolution.infer(images.len() == 1),
+		desired_resolution,
 		size_limit,
 		copy_metadata,
 	)
