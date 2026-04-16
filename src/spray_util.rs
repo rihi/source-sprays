@@ -1,6 +1,6 @@
 use crate::vtf::write_vtf;
 use color_eyre::eyre;
-use color_eyre::eyre::{eyre, WrapErr};
+use color_eyre::eyre::{eyre, ContextCompat, WrapErr};
 use image::{DynamicImage, ImageReader, RgbaImage};
 use itertools::Itertools;
 use lazy_regex::regex_captures;
@@ -128,20 +128,28 @@ pub fn convert_folder(
 		}
 	}
 
-	if !image_paths.contains_key(&(0, 0)) {
-		return Err(eyre!("Spray definition is missing mip0 frame0"));
+	if !image_paths.keys().any(|&(m, _)| m == 0) {
+		return Err(eyre!("Spray definition is missing mip0"));
 	}
 
-	let max_mip = image_paths.keys().map(|&(m, _)| m).max().unwrap_or(0);
-	let max_frame = image_paths.keys().map(|&(_, f)| f).max().unwrap_or(0);
+	let (min_mip, max_mip) = image_paths.keys()
+		.map(|&(m, _)| m)
+		.minmax()
+		.into_option()
+		.unwrap();
+	let (min_frame, max_frame) = image_paths.keys()
+		.map(|&(_, f)| f)
+		.minmax()
+		.into_option()
+		.unwrap();
 	
-	let images: Vec<_> = (0..=max_mip)
+	let images: Vec<_> = (min_mip..=max_mip)
 		.map(|mip| {
-			let (paths, missing): (Vec<_>, Vec<_>) = (0..=max_frame)
+			let (paths, missing): (Vec<_>, Vec<_>) = (min_frame..=max_frame)
 				.map(|f| image_paths.get(&(mip, f)).ok_or(f))
 				.partition_result();
 
-			if paths.is_empty() && !missing.is_empty() {
+			if paths.is_empty() {
 				return Ok(None);
 			}
 
