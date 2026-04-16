@@ -128,8 +128,8 @@ pub(crate) fn read_vtf(mut reader: impl Read + Seek) -> Result<VtfData, VtfError
 		.rev()
 		.map(|mip| (0..frame_count)
 			.map(|_| {
-				let w = (width >> mip).max(1);
-				let h = (height >> mip).max(1);
+				let w = (width >> mip).max(4);
+				let h = (height >> mip).max(4);
 
 				let size = high_res_image_format.required_memory(w as usize, h as usize)
 					.map_err(|_| VtfError::InvalidImageDimensionForImageFormat)?;
