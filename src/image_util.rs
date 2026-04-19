@@ -7,32 +7,40 @@ pub fn has_transparency(img: &RgbaImage) -> bool {
 }
 
 pub fn calculate_dimensions(
-	img: &impl GenericImageView,
-	target_width: u32,
-	target_height: u32
-) -> (u32, u32) {
-	let (width, height) = img.dimensions();
-	if width > height {
-		let new_w = target_width;
-		let new_h = (target_height as f32 * (height as f32 / width as f32)) as u32;
-		(new_w, new_h)
+	src_width: f64,
+	src_height: f64,
+	dst_width: f64,
+	dst_height: f64,
+) -> (f64, f64, f64, f64) {
+	let src_aspect = src_width / src_height;
+	let dst_aspect = dst_width / dst_height;
+
+	let (crop_width, crop_height) = if src_aspect > dst_aspect {
+		(src_width, src_width / dst_aspect)
 	} else {
-		let new_w = (target_width as f32 * (width as f32 / height as f32)) as u32;
-		let new_h = target_height;
-		(new_w, new_h)
-	}
+		(src_height * dst_aspect, src_height)
+	};
+
+	// Center the crop box within the source dimensions
+	let left = (crop_width - src_width) * 0.5;
+	let top = (crop_height - src_height) * 0.5;
+
+	(left, top, crop_width, crop_height)
 }
 
 pub fn resize(img: &RgbaImage, width: u32, height: u32) -> RgbaImage {
-	let (new_w, new_h) = calculate_dimensions(img, width, height);
-	let resized_img = image::imageops::resize(img, new_w, new_h, image::imageops::FilterType::Lanczos3);
-
-	let mut canvas = RgbaImage::new(width, height);
-	let offset_x = (width - new_w) / 2;
-	let offset_y = (height - new_h) / 2;
-
-	image::imageops::overlay(&mut canvas, &resized_img, offset_x as i64, offset_y as i64);
-	canvas
+	let (left, top, c_width, c_height) = calculate_dimensions(
+		img.width() as f64,
+		img.height() as f64,
+		width as f64,
+		height as f64
+	);
+	
+	let mut canvas = RgbaImage::new(c_width as u32, c_height as u32);
+	canvas.set_color_space(img.color_space()).unwrap();
+	
+	image::imageops::overlay(&mut canvas, img, left as i64, top as i64);
+	image::imageops::resize(&canvas, width, height, image::imageops::FilterType::Lanczos3)
 }
 
 pub fn compress(

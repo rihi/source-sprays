@@ -176,7 +176,7 @@ pub fn run() -> eyre::Result<()> {
 			let images: Vec<_> = paths.into_iter()
 				.map(|mip_paths| mip_paths
 					.map(|mip| mip.into_iter()
-						.map(|path| load_image(&path).map(|img| img.to_rgba8()))
+						.map(|path| load_image(&path))
 						.collect::<Result<Vec<_>, _>>())
 					.transpose())
 				.collect::<Result<_, _>>()?;

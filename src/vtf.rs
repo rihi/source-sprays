@@ -1,10 +1,11 @@
 use crate::image_util::{compress, has_transparency, resize};
 use color_eyre::eyre;
 use color_eyre::eyre::{eyre, ContextCompat, OptionExt, WrapErr};
-use image::RgbaImage;
-use std::cmp::{max, min};
-use std::io::{Read, Seek, SeekFrom, Write};
+use image::metadata::Cicp;
+use image::{ConvertColorOptions, RgbaImage};
 use itertools::Itertools;
+use std::cmp::min;
+use std::io::{Read, Seek, SeekFrom, Write};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -246,9 +247,9 @@ pub fn write_vtf(
 		let h = target_l_height << (mip_count - mip_level);
 		
 		for frame in frames {
-			let resized = resize(frame, w, h);
-			// let compressed = compress(&resized, texture_format, nvcompress_file)
-			// 	.wrap_err("Failed to compress image")?;
+			let mut resized = resize(frame, w, h);
+			resized.apply_color_space(Cicp::SRGB, ConvertColorOptions::default())
+				.wrap_err("Failed to conver to srgb color space")?;
 			let compressed = compress(&resized, texture_format);
 
 			dest.write_all(&compressed)

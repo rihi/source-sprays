@@ -2,7 +2,8 @@ use crate::cli::LMipResOption;
 use crate::vtf::write_vtf;
 use color_eyre::eyre;
 use color_eyre::eyre::{eyre, WrapErr};
-use image::{DynamicImage, ImageReader, RgbaImage};
+use image::metadata::Cicp;
+use image::{ConvertColorOptions, ImageReader, RgbaImage};
 use itertools::Itertools;
 use lazy_regex::regex_captures;
 use std::collections::HashMap;
@@ -71,8 +72,7 @@ pub fn convert_file(
 	size_limit: u64,
 	copy_metadata: bool,
 ) -> eyre::Result<()> {
-	let image = load_image(input_file)?
-		.into_rgba8();
+	let image = load_image(input_file)?;
 	
 	convert_generic(
 		&[Some(&vec![image])],
@@ -153,7 +153,7 @@ pub fn convert_folder(
 			}
 
 			let loaded: Vec<_> = paths.into_iter()
-				.map(|p| load_image(p).map(|img| img.into_rgba8()))
+				.map(|p| load_image(p))
 				.collect::<Result<_, _>>()?;
 
 			Ok(Some(loaded))
@@ -173,10 +173,13 @@ pub fn convert_folder(
 	)
 }
 
-pub fn load_image(file: &Path) -> eyre::Result<DynamicImage> {
+pub fn load_image(file: &Path) -> eyre::Result<RgbaImage> {
 	let img = ImageReader::open(file)
 		.wrap_err_with(|| format!("Failed to load image '{}'", file.display()))?
 		.decode()
 		.wrap_err_with(|| format!("Failed to decode image '{}'", file.display()))?;
+	let mut img = img.into_rgba8();
+	img.apply_color_space(Cicp::SRGB_LINEAR, ConvertColorOptions::default())
+		.wrap_err("Failed to convert to linear colorspace")?;
 	Ok(img)
 }
