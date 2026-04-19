@@ -204,10 +204,11 @@ pub(crate) fn thumbnail_mips(
 	vtf: &VtfData,
 	treat_as_square: bool,
 ) -> Result<RgbaImage, ThumbnailError> {
-	let count = vtf.mipmap_count.min(3) as u32;
-	
-	let mut images: Vec<_> = (0..count)
-		.map(|mip| {
+	let first_image_indices = vec![0u8];
+    let mip_indices = vtf.used_mips.as_ref().unwrap_or(&first_image_indices);
+
+	let mut images: Vec<_> = mip_indices.iter()
+		.map(|&mip| {
 			decode_to_image(
 				(vtf.width >> mip).max(1) as u32,
 				(vtf.height >> mip).max(1) as u32,
@@ -217,7 +218,7 @@ pub(crate) fn thumbnail_mips(
 				.map_err(DecompressionError)
 		})
 		.collect::<Result<_, _>>()?;
-	
+
 	if treat_as_square {
 		for img in &mut images {
 			*img = stretch_square(img);

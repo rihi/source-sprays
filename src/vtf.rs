@@ -63,6 +63,7 @@ pub(crate) struct VtfData {
 	pub(crate) first_frame_index: u16,
 	pub(crate) high_res_image_format: ImageFormat,
 	pub(crate) mipmap_count: u8,
+	pub(crate) used_mips: Option<Vec<u8>>,
 	pub(crate) images: Vec<Vec<Vec<u8>>>,
 }
 
@@ -99,9 +100,10 @@ pub(crate) fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfErro
 		.map_err(|_| UnsupportedImageFormat { format: high_res_image_format })?; 
 	let mipmap_count = rest[40];
 	
-	let high_res_offset = if version_minor >= 3 {
+	let (metadata_offset, high_res_offset) = if version_minor >= 3 {
 		let num_resources = u32::from_le_bytes(rest[52..56].try_into().unwrap());
-		let (_, offset) = (0..num_resources)
+
+		let resources: Vec<_> = (0..num_resources)
 			.map(|_| {
 				let mut res_entry = [0u8; 8];
 				reader.read_exact(&mut res_entry)?;
@@ -109,11 +111,47 @@ pub(crate) fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfErro
 				let offset = u32::from_le_bytes(res_entry[4..8].try_into().unwrap());
 				Ok((tag, offset))
 			})
-			.find(|res: &Result<_, VtfError>| matches!(res, Err(_) | Ok((0x30, _))))
-			.ok_or_else(|| NoHighResImageData)??;
-		offset as u64
+			.collect::<Result<_, VtfError>>()?;
+		
+		let metadata_offset = resources.iter()
+			.find(|(tag, _)| *tag == u32::from_le_bytes(*b"SDT\x00"))
+			.map(|(_, offset)| *offset as u64);
+		let (_, high_res_offset) = resources.iter()
+			.find(|(tag, _)| *tag == 0x30)
+			.ok_or(NoHighResImageData)?;
+		
+		(metadata_offset, *high_res_offset as u64)
 	} else {
-		header_size as u64 // could probably be expected_header_size
+		(None, header_size as u64) // could probably be expected_header_size
+	};
+	
+	let used_mips = match metadata_offset {
+		None => None,
+		Some(metadata_offset) => {
+			reader.seek(SeekFrom::Start(metadata_offset))?;
+
+			let mut size_bytes = [0u8; 4];
+			reader.read_exact(&mut size_bytes)?;
+			
+			let size = u32::from_le_bytes(size_bytes);
+			if size < 1 {
+				None
+			} else {
+				let mut data = vec![0u8; size as usize];
+				reader.read_exact(&mut data)?;
+
+				let version = data[0];
+
+				match version {
+					0 => {
+						let count = data[1] as usize;
+						let indices = &data[2..(2 + count)];
+						Some(indices.to_vec())
+					},
+					_ => None,
+				}
+			}
+		},
 	};
 
 	reader.seek(SeekFrom::Start(high_res_offset))?;
@@ -143,6 +181,7 @@ pub(crate) fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfErro
 		first_frame_index,
 		high_res_image_format,
 		mipmap_count,
+		used_mips,
 		images,
 	})
 }
