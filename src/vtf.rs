@@ -222,14 +222,15 @@ pub fn write_vtf(
 		.try_collect()
 		.wrap_err("Mip index doesn't fit into u8")?;
 	
-	if mip_indices.len() > 14 {
-		return Err(eyre!("More than 14 mips"));
+	if mip_indices.len() > 32 - 4 - 2 {
+		return Err(eyre!("More than 26 mips"));
 	}
 	
-	let mut mip_indices_data = [0u8; 16];
-	mip_indices_data[0] = 0; // version
-	mip_indices_data[1] = mip_indices.len() as u8;
-	mip_indices_data[2..(2 + mip_indices.len())].copy_from_slice(&mip_indices);
+	let mut mip_indices_data = [0u8; 32];
+	mip_indices_data[0..4].copy_from_slice(&(32u32 - 4).to_le_bytes());
+	mip_indices_data[4] = 0; // version
+	mip_indices_data[5] = mip_indices.len() as u8;
+	mip_indices_data[6..(6 + mip_indices.len())].copy_from_slice(&mip_indices);
 	
 	dest.write_all(&mip_indices_data)
 		.wrap_err("Failed to write mip indices")?;
@@ -316,7 +317,7 @@ fn write_vtf_header(
 	dest.write_all(&96u32.to_le_bytes())?;
 	
 	dest.write_all(b"\x30\x00\x00\x00")?;
-	dest.write_all(&112u32.to_le_bytes())?;
+	dest.write_all(&128u32.to_le_bytes())?;
 	
 	Ok(())
 }
