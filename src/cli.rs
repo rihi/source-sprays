@@ -1,3 +1,4 @@
+use crate::crc32_inverse::crc32_patch;
 use crate::crc32_writer::Crc32Writer;
 use crate::spray_util::load_image;
 use crate::thumbnail::{thumbnail_animation, thumbnail_mips};
@@ -14,7 +15,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc::channel;
 use walkdir::WalkDir;
-use crate::crc32_inverse::crc32_patch;
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options, version)]
@@ -147,28 +147,28 @@ pub fn run() -> eyre::Result<()> {
 			size_limit,
 		} => {
 			let size_limit = size_limit as u64 * 1024;
+
+			let Some(first_mip) = mips.first() else {
+				eprintln!("No mips specified");
+				std::process::exit(1);
+			};
+
+			for mip in mips.iter().skip(1) {
+				if mip.input_files.len() != first_mip.input_files.len() {
+					eprintln!("Numbers of frames in mip{}({}) must match number of frames of mip0({})", mip.level, mip.input_files.len(), first_mip.input_files.len());
+					std::process::exit(1);
+				}
+			}
 			
 			let max_mip = mips.iter()
 				.map(|m| m.level)
 				.max()
-				.unwrap_or(0);
+				.unwrap();
 			
 			let mut paths = vec![None; max_mip + 1];
 			for mip in mips {
 				if paths[mip.level].replace(mip.input_files).is_some() {
 					eprintln!("Mip {} is specified multiple times. Must be unique", mip.level);
-					std::process::exit(1);
-				}
-			}
-			
-			let Some(first_mip) = &paths[0] else {
-				eprintln!("Mip 0 is missing");
-				std::process::exit(1);
-			};
-			
-			for (i, mip) in paths.iter().enumerate().skip(1) {
-				if let Some(frames) = mip && frames.len() != first_mip.len() {
-					eprintln!("Numbers of frames in mip{}({}) must match number of frames of mip0({})", i, frames.len(), first_mip.len());
 					std::process::exit(1);
 				}
 			}

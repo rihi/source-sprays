@@ -1,6 +1,7 @@
+use crate::cli::LMipResOption;
 use crate::vtf::write_vtf;
 use color_eyre::eyre;
-use color_eyre::eyre::{eyre, ContextCompat, WrapErr};
+use color_eyre::eyre::{eyre, WrapErr};
 use image::{DynamicImage, ImageReader, RgbaImage};
 use itertools::Itertools;
 use lazy_regex::regex_captures;
@@ -9,7 +10,6 @@ use std::fs;
 use std::fs::{File, FileTimes};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-use crate::cli::LMipResOption;
 
 pub fn convert_generic(
 	images: &[Option<&[RgbaImage]>],
@@ -128,22 +128,17 @@ pub fn convert_folder(
 		}
 	}
 
-	if !image_paths.keys().any(|&(m, _)| m == 0) {
-		return Err(eyre!("Spray definition is missing mip0"));
-	}
-
-	let (min_mip, max_mip) = image_paths.keys()
+	let Some((min_mip, max_mip)) = image_paths.keys()
 		.map(|&(m, _)| m)
 		.minmax()
-		.into_option()
-		.unwrap();
+		.into_option() else { return Ok(()) };
 	let (min_frame, max_frame) = image_paths.keys()
 		.map(|&(_, f)| f)
 		.minmax()
 		.into_option()
 		.unwrap();
 	
-	let images: Vec<_> = (min_mip..=max_mip)
+	let images: Vec<_> = (0..=max_mip)
 		.map(|mip| {
 			let (paths, missing): (Vec<_>, Vec<_>) = (min_frame..=max_frame)
 				.map(|f| image_paths.get(&(mip, f)).ok_or(f))

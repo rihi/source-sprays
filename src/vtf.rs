@@ -161,14 +161,9 @@ pub fn write_vtf(
 	desired_resolution: Option<u32>,
 	size_limit: u64,
 ) -> eyre::Result<()> {
-	let is_transparent = images.iter()
-		.flatten()
-		.copied()
-		.flatten()
-		.any(|img| has_transparency(img));
-
-	let main_images = images[0].unwrap();
-	let main_first_frame = &main_images[0];
+	let main_frames = images.iter()
+		.find_map(|frames| frames.as_deref())
+		.unwrap();
 	
 	let max_images_resolution = images.iter()
 		.enumerate()
@@ -178,9 +173,15 @@ pub fn write_vtf(
 			.map(move |res| res * 2u32.pow(mip as u32)))
 		.max()
 		.unwrap();
+
+	let is_transparent = images.iter()
+		.flatten()
+		.copied()
+		.flatten()
+		.any(|img| has_transparency(img));
 	
 	let texture_format = if is_transparent { TextureFormat::Bc3 } else { TextureFormat::Bc1 };
-	let frame_count = main_images.len() as u32;
+	let frame_count = main_frames.len() as u32;
 	let minimum_mip_count = images.len() as u32 - 1;
 	let compression_denominator = if is_transparent { 1 } else { 2 };
 
@@ -194,6 +195,7 @@ pub fn write_vtf(
 	)
 		.ok_or_eyre("No possible resolution for given parameters")?;
 
+	let main_first_frame = &main_frames[0];
 	let (target_l_width, target_l_height) = if main_first_frame.width() <= main_first_frame.height() {
 		(l_res_greater, l_res_lower)
 	} else {
@@ -208,7 +210,10 @@ pub fn write_vtf(
 			if let Some(&img) = images.get(i).flatten_ref() {
 				*prev = Some(img);
 			}
-			*prev
+			Some(match prev {
+				Some(frames) => frames,
+				None => main_frames,
+			})
 		})
 		.collect::<Vec<_>>();
 	
