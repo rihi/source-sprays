@@ -10,7 +10,6 @@ mod watching;
 mod thumbnail;
 mod crc32_writer;
 mod crc32_inverse;
-mod lzss;
 
 fn main() -> eyre::Result<()> {
     color_eyre::install()?;
