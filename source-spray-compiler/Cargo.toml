@@ -1,19 +1,16 @@
 [package]
-name = "spray_compiler_rs"
-version = "0.1.0"
-edition = "2024"
+name = "source-spray-compiler"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-bpaf = { version = "0.9.24", features = ["derive"]}
-color-eyre = { version = "0.6.5", default-features = false }
-crc32fast = "1.5.0"
-image = { version = "0.25.10", default-features = false, features = ["default-formats"] }
-itertools = "0.14.0"
-lazy-regex = "3.6.0"
-notify = "8.2.0"
-texpresso = { version = "2.0.2", features = ["rayon"] }
-thiserror = "2.0.18"
-walkdir = "2.5.0"
-
-[profile.release]
-debug = true
+bpaf = { workspace = true }
+color-eyre = { workspace = true }
+crc32fast = { workspace = true }
+image = { workspace = true }
+itertools = { workspace = true }
+lazy-regex = { workspace = true }
+notify = { workspace = true }
+texpresso = { workspace = true }
+thiserror = { workspace = true }
+walkdir = { workspace = true }

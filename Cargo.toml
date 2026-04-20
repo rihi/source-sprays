@@ -1,2 +1,32 @@
 [workspace]
 resolver = "3"
+members = ["source-spray-compiler", "source-spray-thumbnails"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+bpaf = { version = "0.9.24", features = ["derive"] }
+color-eyre = { version = "0.6.5", default-features = false }
+crc32fast = "1.5.0"
+image = { version = "0.25.10", default-features = false, features = ["default-formats"] }
+itertools = "0.14.0"
+lazy-regex = "3.6.0"
+notify = "8.2.0"
+texpresso = { version = "2.0.2", features = ["rayon"] }
+thiserror = "2.0.18"
+walkdir = "2.5.0"
+texture2ddecoder = "0.1.2"
+windows-core = "0.62.2"
+winreg = { version = "0.56", features = ["transactions"] }
+
+[workspace.dependencies.windows]
+version = "0.62.2"
+features = [
+    "Win32_System_Com",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_Graphics_Gdi",
+    "Win32_System_SystemServices"
+]
