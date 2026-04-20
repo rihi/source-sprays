@@ -1,0 +1,90 @@
+use crate::vtf::TextureFormat;
+use image::{GenericImageView, RgbaImage};
+use texpresso::{Algorithm, Params, COLOUR_WEIGHTS_PERCEPTUAL};
+
+pub fn has_transparency(img: &RgbaImage) -> bool {
+	img.pixels().any(|p| p[3] < 255)
+}
+
+pub fn calculate_dimensions(
+	src_width: f64,
+	src_height: f64,
+	dst_width: f64,
+	dst_height: f64,
+) -> (f64, f64, f64, f64) {
+	let src_aspect = src_width / src_height;
+	let dst_aspect = dst_width / dst_height;
+
+	let (crop_width, crop_height) = if src_aspect > dst_aspect {
+		(src_width, src_width / dst_aspect)
+	} else {
+		(src_height * dst_aspect, src_height)
+	};
+
+	// Center the crop box within the source dimensions
+	let left = (crop_width - src_width) * 0.5;
+	let top = (crop_height - src_height) * 0.5;
+
+	(left, top, crop_width, crop_height)
+}
+
+pub fn resize(img: &RgbaImage, width: u32, height: u32) -> RgbaImage {
+	let (left, top, c_width, c_height) = calculate_dimensions(
+		img.width() as f64,
+		img.height() as f64,
+		width as f64,
+		height as f64
+	);
+	
+	let mut canvas = RgbaImage::new(c_width as u32, c_height as u32);
+	canvas.set_color_space(img.color_space()).unwrap();
+	
+	image::imageops::overlay(&mut canvas, img, left as i64, top as i64);
+	image::imageops::resize(&canvas, width, height, image::imageops::FilterType::Lanczos3)
+}
+
+pub fn compress(
+	img: &RgbaImage,
+	format: TextureFormat,
+) -> Box<[u8]> {
+	let format = match format {
+		TextureFormat::Bc1 => texpresso::Format::Bc1,
+		TextureFormat::Bc3 => texpresso::Format::Bc3,
+	};
+	
+	let width = img.width() as usize;
+	let height = img.height() as usize;
+	
+	let mut output = vec![0u8; format.compressed_size(width, height)]
+		.into_boxed_slice();
+	
+	format.compress(
+		img,
+		img.width() as usize,
+		img.height() as usize,
+		Params {
+			algorithm: Algorithm::IterativeClusterFit,
+			weights: COLOUR_WEIGHTS_PERCEPTUAL,
+			weigh_colour_by_alpha: true
+		},
+		&mut output,
+	);
+	
+	output
+}
+
+pub fn decompress(
+	width: u32,
+	height: u32,
+	format: TextureFormat,
+	data: &[u8],
+) -> RgbaImage {
+	let format = match format {
+		TextureFormat::Bc1 => texpresso::Format::Bc1,
+		TextureFormat::Bc3 => texpresso::Format::Bc3,
+	};
+
+	let mut image = RgbaImage::new(width, height);
+	format.decompress(data, width as usize, height as usize, &mut image);
+	return image;
+}
