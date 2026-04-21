@@ -1,7 +1,7 @@
-use crate::imaging::{thumbnail_animation, thumbnail_mips};
 use crate::module::ComLock;
-use crate::vtf::read_vtf;
 use crate::winstream::WinStream;
+use source_spray_common::thumbnail::{thumbnail_animation, thumbnail_mips};
+use source_spray_common::vtf::read_vtf;
 use std::cell::OnceCell;
 use std::io::{Seek, SeekFrom};
 use windows::{
@@ -49,8 +49,7 @@ impl IThumbnailProvider_Impl for ThumbnailProvider_Impl {
 		let thumbnail = match vtf.frame_count { 
 			1 => thumbnail_mips(&vtf, treat_as_square),
 			_ => thumbnail_animation(&vtf, treat_as_square)
-		}
-			.map_err(|_| E_FAIL)?;
+		};
 		
 		// if let Some((
 		// 	inner_x_start,

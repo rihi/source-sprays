@@ -1,159 +1,14 @@
-use crate::image_util::{compress, has_transparency, resize};
+use crate::image_util::{has_transparency, resize};
 use color_eyre::eyre;
-use color_eyre::eyre::{eyre, ContextCompat, OptionExt, WrapErr};
+use color_eyre::eyre::{eyre, OptionExt, WrapErr};
 use image::metadata::Cicp;
 use image::{ConvertColorOptions, RgbaImage};
 use itertools::Itertools;
+use source_spray_common::imaging::compress;
+pub use source_spray_common::vtf::read_vtf;
+use source_spray_common::vtf::TextureFormat;
 use std::cmp::min;
-use std::io::{Read, Seek, SeekFrom, Write};
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub(crate) enum VtfError {
-	#[error("I/O error: {0}")]
-	Io(#[from] std::io::Error),
-
-	#[error("Invalid VTF signature: {signature:?}")]
-	InvalidSignature { signature: [u8; 4] },
-
-	#[error("Unsupported VTF version {major}.{minor}")]
-	UnsupportedVersion { major: u32, minor: u32 },
-
-	#[error("Unsupported image format: {format}")]
-	UnsupportedImageFormat { format: u32 },
-
-	#[error("Invalid image dimensions for image format")]
-	InvalidImageDimensionForImageFormat,
-
-	#[error("No High-res image data resource")]
-	NoHighResImageData
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum TextureFormat {
-	Bc1,
-	Bc3,
-}
-
-impl TextureFormat {
-	pub(crate) fn required_memory(
-		&self,
-		width: usize,
-		height: usize,
-	) -> Result<usize, ()> {
-		if width % 4 != 0 || height % 4 != 0 {
-			return Err(());
-		}
-		Ok(match self {
-			TextureFormat::Bc1 => (width * height) / 2,
-			TextureFormat::Bc3 => width * height
-		})
-	}
-}
-
-impl TryFrom<u32> for TextureFormat {
-	type Error = ();
-
-	fn try_from(value: u32) -> Result<Self, Self::Error> {
-		match value {
-			13 => Ok(TextureFormat::Bc1),
-			15 => Ok(TextureFormat::Bc3),
-			_ => Err(())
-		}
-	}
-}
-
-pub(crate) struct VtfData {
-	pub(crate) width: u16,
-	pub(crate) height: u16,
-	pub(crate) frame_count: u16,
-	pub(crate) first_frame_index: u16,
-	pub(crate) high_res_image_format: TextureFormat,
-	pub(crate) mipmap_count: u8,
-	pub(crate) images: Vec<Vec<Vec<u8>>>,
-}
-
-
-pub(crate) fn read_vtf(mut reader: impl Read + Seek) -> Result<VtfData, VtfError> {
-	let mut header = [0u8; 16];
-	reader.read_exact(&mut header)?;
-
-	if &header[0..4] != b"VTF\0" {
-		return Err(VtfError::InvalidSignature { signature: header[0..4].try_into().unwrap() });
-	}
-
-	let version_major = u32::from_le_bytes(header[4..8].try_into().unwrap());
-	let version_minor = u32::from_le_bytes(header[8..12].try_into().unwrap());
-	let header_size = u32::from_le_bytes(header[12..16].try_into().unwrap());
-
-	let expected_header_size = match (version_major, version_minor) {
-		(7, 0..=1) => 64,
-		(7, 2) => 80,
-		(7, 3..=5) => 80,
-		_ => return Err(VtfError::UnsupportedVersion { major: version_major, minor: version_minor })
-	};
-
-	let mut rest = vec![0u8; (expected_header_size - 16) as usize];
-	reader.read_exact(&mut rest)?;
-
-	let width = u16::from_le_bytes(rest[0..2].try_into().unwrap());
-	let height = u16::from_le_bytes(rest[2..4].try_into().unwrap());
-
-	let frame_count = u16::from_le_bytes(rest[8..10].try_into().unwrap());
-	let first_frame_index = u16::from_le_bytes(rest[10..12].try_into().unwrap());
-
-	let high_res_image_format = u32::from_le_bytes(rest[36..40].try_into().unwrap());
-	let high_res_image_format = TextureFormat::try_from(high_res_image_format)
-		.map_err(|_| VtfError::UnsupportedImageFormat { format: high_res_image_format })?;
-	let mipmap_count = rest[40];
-
-	let high_res_offset = if version_minor >= 3 {
-		let num_resources = u32::from_le_bytes(rest[52..56].try_into().unwrap());
-		let (_, offset) = (0..num_resources)
-			.map(|_| {
-				let mut res_entry = [0u8; 8];
-				reader.read_exact(&mut res_entry)?;
-				let tag = u32::from_le_bytes(res_entry[0..4].try_into().unwrap());
-				let offset = u32::from_le_bytes(res_entry[4..8].try_into().unwrap());
-				Ok((tag, offset))
-			})
-			.find(|res: &Result<_, VtfError>| matches!(res, Err(_) | Ok((0x30, _))))
-			.ok_or_else(|| VtfError::NoHighResImageData)??;
-		offset as u64
-	} else {
-		header_size as u64 // could probably be expected_header_size
-	};
-
-	reader.seek(SeekFrom::Start(high_res_offset))?;
-
-	let mut images = (0..mipmap_count)
-		.rev()
-		.map(|mip| (0..frame_count)
-			.map(|_| {
-				let w = (width >> mip).max(4);
-				let h = (height >> mip).max(4);
-
-				let size = high_res_image_format.required_memory(w as usize, h as usize)
-					.map_err(|_| VtfError::InvalidImageDimensionForImageFormat)?;
-				let mut vec = vec![0u8; size];
-				reader.read_exact(&mut vec)?;
-				Ok(vec)
-			})
-			.collect::<Result<Vec<_>, VtfError>>())
-		.collect::<Result<Vec<_>, _>>()?;
-
-	images.reverse();
-
-	Ok(VtfData {
-		width,
-		height,
-		frame_count,
-		first_frame_index,
-		high_res_image_format,
-		mipmap_count,
-		images,
-	})
-}
+use std::io::Write;
 
 pub fn write_vtf(
 	mut dest: impl Write,
@@ -181,7 +36,7 @@ pub fn write_vtf(
 		.flatten()
 		.any(|img| has_transparency(img));
 	
-	let texture_format = if is_transparent { TextureFormat::Bc3 } else { TextureFormat::Bc1 };
+	let texture_format = if is_transparent { TextureFormat::DXT5 } else { TextureFormat::DXT1 };
 	let frame_count = main_frames.len() as u32;
 	let minimum_mip_count = images.len() as u32 - 1;
 	let compression_denominator = if is_transparent { 1 } else { 2 };
@@ -272,8 +127,8 @@ fn write_vtf_header(
 	if height % 4 != 0 { panic!("height not multiple of 4"); }
 
 	let img_fmt_id = match texture_format {
-		TextureFormat::Bc1 => 13u32,
-		TextureFormat::Bc3 => 15u32,
+		TextureFormat::DXT1 => 13u32,
+		TextureFormat::DXT5 => 15u32,
 	};
 
 	let mut flags = 0x0000u32;
@@ -285,8 +140,8 @@ fn write_vtf_header(
 		flags |= 0x0200; // no level of detail
 	}
 	flags |= match texture_format {
-		TextureFormat::Bc1 => 0x1000, // 1 bit alpha
-		TextureFormat::Bc3 => 0x2000, // 8 bit alpha
+		TextureFormat::DXT1 => 0x1000, // 1 bit alpha
+		TextureFormat::DXT5 => 0x2000, // 8 bit alpha
 	};
 
 	let first_frame = 0u16;

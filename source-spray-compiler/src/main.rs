@@ -7,7 +7,6 @@ mod image_util;
 mod spray_util;
 mod vtf;
 mod watching;
-mod thumbnail;
 mod crc32_writer;
 mod crc32_inverse;
 

@@ -1,9 +1,8 @@
-use crate::vtf::VtfError::{InvalidImageDimensionForImageFormat, InvalidSignature, NoHighResImageData, UnsupportedImageFormat, UnsupportedVersion};
 use std::io::{Read, Seek, SeekFrom};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum VtfError {
+pub enum VtfError {
 	#[error("I/O error: {0}")]
 	Io(#[from] std::io::Error),
 
@@ -23,13 +22,14 @@ pub(crate) enum VtfError {
 	NoHighResImageData
 }
 
-pub(crate) enum ImageFormat {
+#[derive(Copy, Clone, Debug)]
+pub enum TextureFormat {
 	DXT1,
 	DXT5
 }
 
-impl ImageFormat {
-	pub(crate) fn required_memory(
+impl TextureFormat {
+	pub fn required_memory(
 		&self,
 		width: usize,
 		height: usize,
@@ -38,41 +38,41 @@ impl ImageFormat {
 			return Err(());
 		}
 		Ok(match self {
-			ImageFormat::DXT1 => (width * height) / 2,
-			ImageFormat::DXT5 => width * height
+			TextureFormat::DXT1 => (width * height) / 2,
+			TextureFormat::DXT5 => width * height
 		})
 	}
 }
 
-impl TryFrom<u32> for ImageFormat {
+impl TryFrom<u32> for TextureFormat {
 	type Error = ();
 
 	fn try_from(value: u32) -> Result<Self, Self::Error> {
 		match value { 
-			13 => Ok(ImageFormat::DXT1),
-			15 => Ok(ImageFormat::DXT5),
+			13 => Ok(TextureFormat::DXT1),
+			15 => Ok(TextureFormat::DXT5),
 			_ => Err(())
 		}
 	}
 }
 
-pub(crate) struct VtfData {
-	pub(crate) width: u16,
-	pub(crate) height: u16,
-	pub(crate) frame_count: u16,
-	pub(crate) first_frame_index: u16,
-	pub(crate) high_res_image_format: ImageFormat,
-	pub(crate) mipmap_count: u8,
-	pub(crate) used_mips: Option<Vec<u8>>,
-	pub(crate) images: Vec<Vec<Vec<u8>>>,
+pub struct VtfData {
+	pub width: u16,
+	pub height: u16,
+	pub frame_count: u16,
+	pub first_frame_index: u16,
+	pub high_res_image_format: TextureFormat,
+	pub mipmap_count: u8,
+	pub used_mips: Option<Vec<u8>>,
+	pub images: Vec<Vec<Vec<u8>>>,
 }
 
-pub(crate) fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfError> {
+pub fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfError> {
 	let mut header = [0u8; 16];
 	reader.read_exact(&mut header)?;
 	
 	if &header[0..4] != b"VTF\0" {
-		return Err(InvalidSignature { signature: header[0..4].try_into().unwrap() });
+		return Err(VtfError::InvalidSignature { signature: header[0..4].try_into().unwrap() });
 	}
 
 	let version_major = u32::from_le_bytes(header[4..8].try_into().unwrap());
@@ -83,7 +83,7 @@ pub(crate) fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfErro
 		(7, 0..=1) => 64,
 		(7, 2) => 80,
 		(7, 3..=5) => 80,
-		_ => return Err(UnsupportedVersion { major: version_major, minor: version_minor })
+		_ => return Err(VtfError::UnsupportedVersion { major: version_major, minor: version_minor })
 	};
 	
 	let mut rest = vec![0u8; (expected_header_size - 16) as usize];
@@ -96,8 +96,8 @@ pub(crate) fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfErro
 	let first_frame_index = u16::from_le_bytes(rest[10..12].try_into().unwrap());
 
 	let high_res_image_format = u32::from_le_bytes(rest[36..40].try_into().unwrap());
-	let high_res_image_format = ImageFormat::try_from(high_res_image_format)
-		.map_err(|_| UnsupportedImageFormat { format: high_res_image_format })?; 
+	let high_res_image_format = TextureFormat::try_from(high_res_image_format)
+		.map_err(|_| VtfError::UnsupportedImageFormat { format: high_res_image_format })?; 
 	let mipmap_count = rest[40];
 	
 	let (metadata_offset, high_res_offset) = if version_minor >= 3 {
@@ -118,11 +118,11 @@ pub(crate) fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfErro
 			.map(|(_, offset)| *offset as u64);
 		let (_, high_res_offset) = resources.iter()
 			.find(|(tag, _)| *tag == 0x30)
-			.ok_or(NoHighResImageData)?;
+			.ok_or(VtfError::NoHighResImageData)?;
 		
 		(metadata_offset, *high_res_offset as u64)
 	} else {
-		(None, header_size as u64) // could probably be expected_header_size
+		(None, header_size as u64)
 	};
 	
 	let used_mips = match metadata_offset {
@@ -164,7 +164,7 @@ pub(crate) fn read_vtf<R: Read + Seek>(mut reader: R) -> Result<VtfData, VtfErro
 				let h = (height >> mip).max(4);
 
 				let size = high_res_image_format.required_memory(w as usize, h as usize)
-					.map_err(|_| InvalidImageDimensionForImageFormat)?;
+					.map_err(|_| VtfError::InvalidImageDimensionForImageFormat)?;
 				let mut vec = vec![0u8; size];
 				reader.read_exact(&mut vec)?;
 				Ok(vec)

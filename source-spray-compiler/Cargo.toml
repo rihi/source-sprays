@@ -4,13 +4,12 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-bpaf = { workspace = true }
-color-eyre = { workspace = true }
-crc32fast = { workspace = true }
-image = { workspace = true }
-itertools = { workspace = true }
-lazy-regex = { workspace = true }
-notify = { workspace = true }
-texpresso = { workspace = true }
-thiserror = { workspace = true }
-walkdir = { workspace = true }
+bpaf.workspace = true
+color-eyre.workspace = true
+crc32fast.workspace = true
+image.workspace = true
+itertools.workspace = true
+lazy-regex.workspace = true
+notify.workspace = true
+walkdir.workspace = true
+source-spray-common = { path = "../source-spray-common" }

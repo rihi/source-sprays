@@ -1,6 +1,4 @@
-use crate::vtf::TextureFormat;
-use image::{GenericImageView, RgbaImage};
-use texpresso::{Algorithm, Params, COLOUR_WEIGHTS_PERCEPTUAL};
+use image::RgbaImage;
 
 pub fn has_transparency(img: &RgbaImage) -> bool {
 	img.pixels().any(|p| p[3] < 255)
@@ -41,50 +39,4 @@ pub fn resize(img: &RgbaImage, width: u32, height: u32) -> RgbaImage {
 	
 	image::imageops::overlay(&mut canvas, img, left as i64, top as i64);
 	image::imageops::resize(&canvas, width, height, image::imageops::FilterType::Lanczos3)
-}
-
-pub fn compress(
-	img: &RgbaImage,
-	format: TextureFormat,
-) -> Box<[u8]> {
-	let format = match format {
-		TextureFormat::Bc1 => texpresso::Format::Bc1,
-		TextureFormat::Bc3 => texpresso::Format::Bc3,
-	};
-	
-	let width = img.width() as usize;
-	let height = img.height() as usize;
-	
-	let mut output = vec![0u8; format.compressed_size(width, height)]
-		.into_boxed_slice();
-	
-	format.compress(
-		img,
-		img.width() as usize,
-		img.height() as usize,
-		Params {
-			algorithm: Algorithm::IterativeClusterFit,
-			weights: COLOUR_WEIGHTS_PERCEPTUAL,
-			weigh_colour_by_alpha: true
-		},
-		&mut output,
-	);
-	
-	output
-}
-
-pub fn decompress(
-	width: u32,
-	height: u32,
-	format: TextureFormat,
-	data: &[u8],
-) -> RgbaImage {
-	let format = match format {
-		TextureFormat::Bc1 => texpresso::Format::Bc1,
-		TextureFormat::Bc3 => texpresso::Format::Bc3,
-	};
-
-	let mut image = RgbaImage::new(width, height);
-	format.decompress(data, width as usize, height as usize, &mut image);
-	return image;
 }

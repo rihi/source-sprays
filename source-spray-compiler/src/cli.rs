@@ -1,7 +1,6 @@
 use crate::crc32_inverse::crc32_patch;
 use crate::crc32_writer::Crc32Writer;
 use crate::spray_util::load_image;
-use crate::thumbnail::{thumbnail_animation, thumbnail_mips};
 use crate::vtf::{read_vtf, write_vtf};
 use crate::watching::{compile_spray_def, delete_spray_def, is_spray_def, path_vtf_for_def};
 use bpaf::Bpaf;
@@ -9,6 +8,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
 use notify::event::{ModifyKind, RenameMode};
 use notify::{EventKind, RecursiveMode, Watcher};
+use source_spray_common::thumbnail::{thumbnail_animation, thumbnail_mips};
 use std::fs::File;
 use std::io::{BufWriter, Cursor, Write};
 use std::path::{Path, PathBuf};

@@ -1,48 +1,11 @@
-use crate::image_util::decompress;
+use crate::imaging::{decompress, find_inner_bounds, stretch_square};
 use crate::vtf::VtfData;
-use image::imageops::FilterType;
 use image::{GenericImageView, RgbaImage};
 use std::cmp::max;
 use std::iter::zip;
 use std::ops::Deref;
 
-pub(crate) fn stretch_square(img: &RgbaImage) -> RgbaImage {
-	let size = img.width().max(img.height());
-	image::imageops::resize(
-		img,
-		size,
-		size,
-		FilterType::Triangle, // good quality + fast
-	)
-}
-
-pub(crate) fn find_inner_bounds(img: &RgbaImage) -> Option<(u32, u32, u32, u32)> {
-	let (width, height) = img.dimensions();
-	let buf = img.as_raw();
-
-	let non_transparent = |x: u32, y: u32| {
-		let idx = ((y * width + x) * 4 + 3) as usize;
-		buf[idx] != 0
-	};
-
-	let min_y = (0..height)
-		.find(|&y| (0..width).any(|x| non_transparent(x, y)))?;
-
-	let max_y = (min_y..height)
-		.rev()
-		.find(|&y| (0..width).any(|x| non_transparent(x, y)))? + 1;
-
-	let min_x = (0..width)
-		.find(|&x| (min_y..max_y).any(|y| non_transparent(x, y)))?;
-
-	let max_x = (min_x..width)
-		.rev()
-		.find(|&x| (min_y..max_y).any(|y| non_transparent(x, y)))? + 1;
-
-	Some((min_x, min_y, max_x, max_y))
-}
-
-pub(crate) fn thumbnail_animation(
+pub fn thumbnail_animation(
 	vtf: &VtfData,
 	treat_as_square: bool,
 ) -> RgbaImage {
@@ -169,19 +132,22 @@ pub(crate) fn thumbnail_animation(
 	canvas
 }
 
-pub(crate) fn thumbnail_mips(
+pub fn thumbnail_mips(
 	vtf: &VtfData,
 	treat_as_square: bool,
 ) -> RgbaImage {
-	let count = vtf.mipmap_count.min(3) as u32;
+	let first_image_indices = vec![0u8];
+	let mip_indices = vtf.used_mips.as_ref().unwrap_or(&first_image_indices);
 
-	let mut images: Vec<_> = (0..count)
-		.map(|mip| decompress(
-			(vtf.width >> mip).max(1) as u32,
-			(vtf.height >> mip).max(1) as u32,
-			vtf.high_res_image_format,
-			&vtf.images[mip as usize][0],
-		))
+	let mut images: Vec<_> = mip_indices.iter()
+		.map(|&mip| {
+			decompress(
+				(vtf.width >> mip).max(1) as u32,
+				(vtf.height >> mip).max(1) as u32,
+				vtf.high_res_image_format,
+				&vtf.images[mip as usize][0],
+			)
+		})
 		.collect();
 
 	if treat_as_square {

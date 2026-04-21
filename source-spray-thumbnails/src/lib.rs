@@ -3,8 +3,6 @@ mod class_factory;
 mod thumbnail_provider;
 mod registry;
 mod winstream;
-mod vtf;
-mod imaging;
 
 use std::ffi::c_void;
 use std::sync::atomic::Ordering;

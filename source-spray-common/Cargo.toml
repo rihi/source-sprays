@@ -1,0 +1,9 @@
+[package]
+name = "source-spray-common"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+image.workspace = true
+thiserror.workspace = true
+texpresso.workspace = true

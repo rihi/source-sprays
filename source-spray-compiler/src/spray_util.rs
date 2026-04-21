@@ -128,7 +128,7 @@ pub fn convert_folder(
 		}
 	}
 
-	let Some((min_mip, max_mip)) = image_paths.keys()
+	let Some((_min_mip, max_mip)) = image_paths.keys()
 		.map(|&(m, _)| m)
 		.minmax()
 		.into_option() else { return Ok(()) };

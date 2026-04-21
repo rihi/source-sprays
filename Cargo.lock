@@ -1073,6 +1073,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
+name = "source-spray-common"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "texpresso",
+ "thiserror",
+]
+
+[[package]]
 name = "source-spray-compiler"
 version = "0.1.0"
 dependencies = [
@@ -1083,8 +1092,7 @@ dependencies = [
  "itertools",
  "lazy-regex",
  "notify",
- "texpresso",
- "thiserror",
+ "source-spray-common",
  "walkdir",
 ]
 
@@ -1092,9 +1100,7 @@ dependencies = [
 name = "source-spray-thumbnails"
 version = "0.1.0"
 dependencies = [
- "image",
- "texture2ddecoder",
- "thiserror",
+ "source-spray-common",
  "windows",
  "windows-core",
  "winreg",
@@ -1125,15 +1131,6 @@ checksum = "8550677e2259d675a7841cb1403db35f330cc9e58674c8c5caa12dd12c51dc71"
 dependencies = [
  "libm",
  "rayon",
-]
-
-[[package]]
-name = "texture2ddecoder"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "427ae8ec7f2f0fdd3146b77cfa44bea880caf066f7e55398a8467afe2645c832"
-dependencies = [
- "paste",
 ]
 
 [[package]]
