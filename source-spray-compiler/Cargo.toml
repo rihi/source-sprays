@@ -12,4 +12,5 @@ itertools.workspace = true
 lazy-regex.workspace = true
 notify.workspace = true
 walkdir.workspace = true
+fast_image_resize.workspace = true
 source-spray-common = { path = "../source-spray-common" }

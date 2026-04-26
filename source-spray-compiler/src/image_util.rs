@@ -1,3 +1,4 @@
+use fast_image_resize::Resizer;
 use image::RgbaImage;
 
 pub fn has_transparency(img: &RgbaImage) -> bool {
@@ -38,5 +39,16 @@ pub fn resize(img: &RgbaImage, width: u32, height: u32) -> RgbaImage {
 	canvas.set_color_space(img.color_space()).unwrap();
 	
 	image::imageops::overlay(&mut canvas, img, left as i64, top as i64);
-	image::imageops::resize(&canvas, width, height, image::imageops::FilterType::Lanczos3)
+	
+	let mut canvas_resized = RgbaImage::new(width, height);
+	canvas_resized.set_color_space(canvas.color_space()).unwrap();
+	
+	let mut resizer = Resizer::new();
+	resizer.resize(
+		&canvas,
+		&mut canvas_resized,
+		None
+	).unwrap();
+	
+	canvas_resized
 }
