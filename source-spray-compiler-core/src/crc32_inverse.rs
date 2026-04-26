@@ -1,4 +1,4 @@
-pub(crate) fn crc32_patch(current_crc: u32, target_crc: u32) -> [u8; 4] {
+pub fn crc32_patch(current_crc: u32, target_crc: u32) -> [u8; 4] {
 	let mut res = current_crc ^ 0xFFFFFFFF;
 	for _ in 0..32 {
 		if res & 1 != 0 {

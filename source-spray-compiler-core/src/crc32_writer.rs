@@ -1,20 +1,20 @@
 use crc32fast::Hasher;
 use std::io::Write;
 
-pub(crate) struct Crc32Writer<W: Write> {
+pub struct Crc32Writer<W: Write> {
 	inner: W,
 	hasher: Hasher,
 }
 
 impl<W: Write> Crc32Writer<W> {
-	pub(crate) fn new(inner: W) -> Self {
+	pub fn new(inner: W) -> Self {
 		Self {
 			inner,
 			hasher: Hasher::new(),
 		}
 	}
 
-	pub(crate) fn finalize(&self) -> u32 {
+	pub fn finalize(&self) -> u32 {
 		self.hasher.clone().finalize()
 	}
 }

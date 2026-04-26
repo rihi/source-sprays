@@ -1,0 +1,12 @@
+[package]
+name = "source-spray-compiler-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+color-eyre.workspace = true
+crc32fast.workspace = true
+image.workspace = true
+itertools.workspace = true
+fast_image_resize.workspace = true
+source-spray-common = { path = "../source-spray-common" }

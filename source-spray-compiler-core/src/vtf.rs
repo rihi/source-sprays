@@ -5,14 +5,13 @@ use image::metadata::Cicp;
 use image::{ConvertColorOptions, RgbaImage};
 use itertools::Itertools;
 use source_spray_common::imaging::compress;
-pub use source_spray_common::vtf::read_vtf;
 use source_spray_common::vtf::TextureFormat;
 use std::cmp::min;
 use std::io::Write;
 
 pub fn write_vtf(
 	mut dest: impl Write,
-	images: &[Option<&[RgbaImage]>], 
+	images: &[Option<&[RgbaImage]>],
 	lowest_mip_resolution: Option<u32>,
 	desired_resolution: Option<u32>,
 	size_limit: u64,

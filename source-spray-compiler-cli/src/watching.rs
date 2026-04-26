@@ -1,16 +1,100 @@
 use crate::cli::LMipResOption;
-use crate::vtf::write_vtf;
 use color_eyre::eyre;
-use color_eyre::eyre::{eyre, WrapErr};
-use image::metadata::Cicp;
-use image::{ConvertColorOptions, ImageReader, RgbaImage};
+use color_eyre::eyre::{eyre, Context};
+use image::RgbaImage;
 use itertools::Itertools;
 use lazy_regex::regex_captures;
+use source_spray_compiler_core::image_util::load_image;
+use source_spray_compiler_core::vtf::write_vtf;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::{File, FileTimes};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+
+pub fn rebase_path(
+	path: &Path,
+	base: &Path,
+	new_base: &Path,
+) -> Option<PathBuf> {
+	path.strip_prefix(base)
+		.ok()
+		.map(|rel| new_base.join(rel))
+}
+
+pub fn path_vtf_for_def(
+	def_path: &Path,
+	src_path: &Path,
+	dst_path: &Path,
+) -> PathBuf {
+	let mut vtf_path = rebase_path(def_path, src_path, dst_path).unwrap();
+	if def_path.is_dir() {
+		vtf_path.add_extension("vtf");
+	} else {
+		vtf_path.set_extension("vtf");
+	}
+	vtf_path
+}
+
+pub fn is_spray_def(
+	path: &Path
+) -> bool {
+	let Some(filename) = path.file_name() else {
+		return false;
+	};
+	return filename.to_string_lossy().contains(".spray");
+}
+
+pub fn compile_spray_def(
+	def_path: &Path,
+	vtf_path: &Path,
+	lowest_mip_resolution: LMipResOption,
+	desired_resolution: Option<u32>,
+	size_limit: u64,
+	copy_metadata: bool,
+) {
+	if def_path.is_file() {
+		println!("Info: Compiling file spray def {} to {}", def_path.display(), vtf_path.display());
+		if let Err(e) = convert_file(
+			def_path,
+			&vtf_path,
+			lowest_mip_resolution.infer(true),
+			desired_resolution,
+			size_limit,
+			copy_metadata
+		) {
+			eprintln!("Error: Failed convert file def to vtf: {}\n{:?}", def_path.display(), e);
+		}
+	}
+	if def_path.is_dir() {
+		println!("Info: Compiling dir spray def {} to {}", def_path.display(), vtf_path.display());
+		if let Err(e) = convert_folder(
+			def_path,
+			&vtf_path,
+			lowest_mip_resolution,
+			desired_resolution,
+			size_limit,
+			copy_metadata
+		) {
+			eprintln!("Error: Failed convert dir def to vtf: {}\n{:?}", vtf_path.display(), e);
+		}
+	}
+}
+
+pub fn delete_spray_def(
+	def_path: &Path,
+	src_path: &Path,
+	dst_path: &Path,
+) {
+	let rebased = rebase_path(def_path, src_path, dst_path).unwrap();
+	let vtf_file = rebased.with_extension("vtf");
+	let vtf_dir = rebased.with_added_extension("vtf");
+	
+	println!("Info: Removing spray {} at {}", def_path.display(), vtf_file.display());
+	let _ = std::fs::remove_file(vtf_file);
+	println!("Info: Removing spray {} at {}", def_path.display(), vtf_dir.display());
+	let _ = std::fs::remove_file(vtf_dir);
+}
 
 pub fn convert_generic(
 	images: &[Option<&[RgbaImage]>],
@@ -25,12 +109,12 @@ pub fn convert_generic(
 		std::fs::create_dir_all(parent)
 			.wrap_err("Failed to create parent directories for output")?;
 	}
-	
+
 	let file = File::create(output_file)
 		.wrap_err("Failed to create file")?;
-	
+
 	let mut writer = BufWriter::new(&file);
-	
+
 	write_vtf(
 		&mut writer,
 		images,
@@ -38,7 +122,7 @@ pub fn convert_generic(
 		desired_resolution,
 		size_limit,
 	)?;
-	
+
 	writer.flush()
 		.wrap_err("Error while flushing file writer")?;
 
@@ -60,7 +144,7 @@ pub fn convert_generic(
 		file.set_times(times)
 			.wrap_err("Failed to copy metadata information for created file")?;
 	}
-	
+
 	Ok(())
 }
 
@@ -73,7 +157,7 @@ pub fn convert_file(
 	copy_metadata: bool,
 ) -> eyre::Result<()> {
 	let image = load_image(input_file)?;
-	
+
 	convert_generic(
 		&[Some(&vec![image])],
 		input_file,
@@ -137,7 +221,7 @@ pub fn convert_folder(
 		.minmax()
 		.into_option()
 		.unwrap();
-	
+
 	let images: Vec<_> = (0..=max_mip)
 		.map(|mip| {
 			let (paths, missing): (Vec<_>, Vec<_>) = (min_frame..=max_frame)
@@ -171,15 +255,4 @@ pub fn convert_folder(
 		size_limit,
 		copy_metadata,
 	)
-}
-
-pub fn load_image(file: &Path) -> eyre::Result<RgbaImage> {
-	let img = ImageReader::open(file)
-		.wrap_err_with(|| format!("Failed to load image '{}'", file.display()))?
-		.decode()
-		.wrap_err_with(|| format!("Failed to decode image '{}'", file.display()))?;
-	let mut img = img.into_rgba8();
-	img.apply_color_space(Cicp::SRGB_LINEAR, ConvertColorOptions::default())
-		.wrap_err("Failed to convert to linear colorspace")?;
-	Ok(img)
 }

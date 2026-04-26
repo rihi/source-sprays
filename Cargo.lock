@@ -1111,19 +1111,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "source-spray-compiler"
+name = "source-spray-compiler-cli"
 version = "0.1.0"
 dependencies = [
  "bpaf",
  "color-eyre",
  "crc32fast",
- "fast_image_resize",
  "image",
  "itertools",
  "lazy-regex",
  "notify",
  "source-spray-common",
+ "source-spray-compiler-core",
  "walkdir",
+]
+
+[[package]]
+name = "source-spray-compiler-core"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "crc32fast",
+ "fast_image_resize",
+ "image",
+ "itertools",
+ "source-spray-common",
 ]
 
 [[package]]

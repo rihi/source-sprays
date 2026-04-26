@@ -1,5 +1,22 @@
+use color_eyre::eyre;
+use color_eyre::eyre::WrapErr;
 use fast_image_resize::Resizer;
-use image::RgbaImage;
+use image::metadata::Cicp;
+use image::{ConvertColorOptions, ImageReader, RgbaImage};
+use std::path::Path;
+
+pub fn load_image(file: &Path) -> eyre::Result<RgbaImage> {
+	let img = ImageReader::open(file)
+		.wrap_err_with(|| format!("Failed to load image '{}'", file.display()))?
+		.decode()
+		.wrap_err_with(|| format!("Failed to decode image '{}'", file.display()))?;
+	
+	let mut img = img.into_rgba8();
+	img.apply_color_space(Cicp::SRGB_LINEAR, ConvertColorOptions::default())
+		.wrap_err("Failed to convert to linear colorspace")?;
+	
+	Ok(img)
+}
 
 pub fn has_transparency(img: &RgbaImage) -> bool {
 	img.pixels().any(|p| p[3] < 255)

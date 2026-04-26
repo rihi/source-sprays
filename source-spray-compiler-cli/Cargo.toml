@@ -1,5 +1,5 @@
 [package]
-name = "source-spray-compiler"
+name = "source-spray-compiler-cli"
 version.workspace = true
 edition.workspace = true
 
@@ -12,5 +12,5 @@ itertools.workspace = true
 lazy-regex.workspace = true
 notify.workspace = true
 walkdir.workspace = true
-fast_image_resize.workspace = true
 source-spray-common = { path = "../source-spray-common" }
+source-spray-compiler-core = { path = "../source-spray-compiler-core" }

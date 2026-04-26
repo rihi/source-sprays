@@ -1,6 +1,11 @@
 [workspace]
 resolver = "3"
-members = ["source-spray-compiler", "source-spray-thumbnails", "source-spray-common"]
+members = [
+    "source-spray-compiler-core",
+    "source-spray-compiler-cli",
+    "source-spray-thumbnails",
+    "source-spray-common"
+]
 
 [workspace.package]
 version = "0.1.0"
