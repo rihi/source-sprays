@@ -104,7 +104,7 @@ pub fn write_vtf(
 		for frame in frames {
 			let mut resized = resize(frame, w, h);
 			resized.apply_color_space(Cicp::SRGB, ConvertColorOptions::default())
-				.wrap_err("Failed to conver to srgb color space")?;
+				.wrap_err("Failed to convert to srgb color space")?;
 			let compressed = compress(&resized, texture_format);
 
 			dest.write_all(&compressed)
