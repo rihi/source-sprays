@@ -197,7 +197,12 @@ fn file_size(
 	let f = frame_count as u64;
 	let cr = compression_denominator as u64;
 
-	88 + (f * mip_factor * w * h) / cr
+	let vtf_header_size = 80;
+	let vtf_resource_dict_size = 2 * 8;
+	let vtf_sdt_resource_size = 32;
+	let vtf_highres_resource_size = (f * mip_factor * w * h) / cr;
+
+	vtf_header_size + vtf_resource_dict_size + vtf_sdt_resource_size + vtf_highres_resource_size
 }
 
 fn mip_counts(
