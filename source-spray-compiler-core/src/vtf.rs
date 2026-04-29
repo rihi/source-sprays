@@ -241,10 +241,10 @@ fn find_lresolution(
 		})
 		.flatten()
 		.max_by_key(|&(r, m)| {
-			let pixel_count = r * r * 4u32.pow(m);
-			match r * 2u32.pow(m) >= desired_resolution {
-				false => (false, pixel_count, u32::MAX - m),
-				true => (true, u32::MAX - pixel_count, u32::MAX - m),
+			let resolution = r * 2u32.pow(m);
+			match resolution >= desired_resolution {
+				false => (false, resolution, u32::MAX - m),
+				true => (true, u32::MAX - resolution, u32::MAX - m),
 			}
 		})?;
 	
@@ -261,10 +261,11 @@ fn find_lresolution(
 		})
 		.flatten()
 		.max_by_key(|&(r, m)| {
-			let pixel_count = res0 * r * 4u32.pow(m);
-			match r * 2u32.pow(m) >= desired_resolution {
-				false => (false, pixel_count, u32::MAX - m),
-				true => (true, u32::MAX - pixel_count, u32::MAX - m),
+			let resolution0 = res0 * 2u32.pow(m);
+			let resolution1 = r * 2u32.pow(m);
+			match resolution0 >= desired_resolution && resolution1 >= desired_resolution {
+				false => (false, resolution1, u32::MAX - m),
+				true => (true, u32::MAX - resolution1, u32::MAX - m),
 			}
 		})?;
 
