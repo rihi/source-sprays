@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Source Spray VTF Converter</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="wasm-loading">
+  <div id="wasmOverlay" class="wasm-overlay" role="alert" aria-live="assertive">
+    <div class="wasm-overlay-panel">
+      <h2 id="wasmOverlayTitle">Loading compiler</h2>
+      <p id="wasmOverlayMessage">Loading the WebAssembly package.</p>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <header class="title-block">
+      <h1>VTF Converter</h1>
+      <p>Build Source spray VTFs from image frames and mip overrides.</p>
+    </header>
+
+    <form id="settings" class="settings">
+      <label class="field">
+        <span>File size limit</span>
+        <div class="inline-input">
+          <input id="sizeLimit" type="number" min="1" step="1" value="512">
+          <span>KiB</span>
+        </div>
+      </label>
+
+      <label class="field">
+        <span>Desired max resolution</span>
+        <input id="desiredResolution" type="number" min="4" step="4" value="512">
+      </label>
+
+      <label class="field">
+        <span>Frames</span>
+        <input id="frameCount" type="number" min="1" max="64" step="1" value="1">
+      </label>
+
+      <section class="fieldset">
+        <div class="fieldset-title">Mips</div>
+        <label class="toggle-row">
+          <input id="lowestMipEnabled" type="checkbox">
+          <span>Require mip below resolution</span>
+        </label>
+        <label class="field">
+          <span>Lowest mip resolution</span>
+          <input id="lowestMipResolution" type="number" min="4" step="4" value="32" disabled>
+        </label>
+        <label class="field">
+          <span>Minimum mips</span>
+          <input id="minMipCount" type="number" min="0" max="26" step="1" value="0">
+        </label>
+      </section>
+
+      <fieldset class="radio-group">
+        <legend>Texture format</legend>
+        <label>
+          <input type="radio" name="textureFormat" value="dxt1" checked>
+          <span>DXT1</span>
+        </label>
+        <label>
+          <input type="radio" name="textureFormat" value="dxt5">
+          <span>DXT5</span>
+        </label>
+      </fieldset>
+    </form>
+
+    <section class="result-panel">
+      <div class="result-row">
+        <span>Picked resolution</span>
+        <strong id="pickedResolution">-</strong>
+      </div>
+      <div class="result-row">
+        <span>File size</span>
+        <strong id="fileSize">-</strong>
+      </div>
+      <p id="statusText" class="status-text">Waiting for wasm package.</p>
+    </section>
+
+    <button id="exportButton" class="export-button" type="button" disabled title="Wasm package is not loaded.">
+      Export VTF
+    </button>
+  </aside>
+
+  <main class="workspace">
+    <div id="gridWrap" class="grid-wrap">
+      <div id="imageGrid" class="image-grid"></div>
+    </div>
+  </main>
+
+  <input id="fileInput" type="file" accept="image/*" hidden>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
