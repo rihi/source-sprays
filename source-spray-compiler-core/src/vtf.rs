@@ -9,7 +9,7 @@ use source_spray_common::vtf::TextureFormat;
 use std::cmp::min;
 use std::io::Write;
 
-pub fn write_vtf(
+pub fn write_optimal_vtf(
 	mut dest: impl Write,
 	images: &[Option<&[RgbaImage]>],
 	lowest_mip_resolution: Option<u32>,
@@ -72,49 +72,49 @@ pub fn write_vtf(
 		})
 		.collect::<Vec<_>>();
 	
-	write_vtf_header(&mut dest, target_width, target_height, texture_format, mip_count, frame_count)
-		.wrap_err("Failed to write vtf header")?;
-	
 	let mip_indices: Vec<_> = images.iter()
 		.enumerate()
 		.filter_map(move |(i, img)| img.map(move |_| i))
 		.map(u8::try_from)
 		.try_collect()
 		.wrap_err("Mip index doesn't fit into u8")?;
-	
+
 	if mip_indices.len() > 32 - 4 - 2 {
 		return Err(eyre!("More than 26 mips"));
 	}
 	
-	let mut mip_indices_data = [0u8; 32];
-	mip_indices_data[0..4].copy_from_slice(&(32u32 - 4).to_le_bytes());
-	mip_indices_data[4] = 0; // version
-	mip_indices_data[5] = mip_indices.len() as u8;
-	mip_indices_data[6..(6 + mip_indices.len())].copy_from_slice(&mip_indices);
-	
-	dest.write_all(&mip_indices_data)
-		.wrap_err("Failed to write mip indices")?;
-	
-	for (mip_level, frames) in filled_images.into_iter().enumerate().rev() {
-		let mip_level = mip_level as u32;
-		let w = target_l_width << (mip_count - mip_level);
-		let h = target_l_height << (mip_count - mip_level);
-		
-		for frame in frames {
-			let mut resized = resize(frame, w, h);
-			resized.apply_color_space(Cicp::SRGB, ConvertColorOptions::default())
-				.wrap_err("Failed to convert to srgb color space")?;
-			let compressed = compress(&resized, texture_format);
-
-			dest.write_all(&compressed)
-				.wrap_err("Failed to write compressed image")?;
-		}
-	}
+	write_vtf(
+		&mut dest,
+		&filled_images,
+		&mip_indices,
+		target_width,
+		target_height,
+		frame_count,
+		texture_format,
+	)?;
 	
 	Ok(())
 }
 
-fn write_vtf_header(
+pub fn write_vtf(
+	mut dest: impl Write,
+	images: &[&[RgbaImage]],
+	used_mips: &[u8],
+	m0_width: u32,
+	m0_height: u32,
+	frame_count: u32,
+	texture_format: TextureFormat,
+) -> std::io::Result<()> {
+	let mip_count = images.len() as u32 - 1;
+	
+	write_vtf_header(&mut dest, m0_width, m0_height, texture_format, mip_count, frame_count)?;
+	write_vtf_sdt_resource(&mut dest, used_mips)?;
+	write_vtf_high_res_data(&mut dest, images, texture_format, m0_width, m0_height)?;
+	
+	Ok(())
+}
+
+pub fn write_vtf_header(
     mut dest: impl Write,
     width: u32,
     height: u32,
@@ -182,7 +182,51 @@ fn write_vtf_header(
 	Ok(())
 }
 
-fn file_size(
+pub fn write_vtf_sdt_resource(
+	mut dest: impl Write,
+	mip_indices: &[u8],
+) -> std::io::Result<()> {
+	if mip_indices.len() > 32 - 4 - 2 {
+		panic!("More than 26 mips");
+	}
+
+	let mut mip_indices_data = [0u8; 32];
+	mip_indices_data[0..4].copy_from_slice(&(32u32 - 4).to_le_bytes());
+	mip_indices_data[4] = 0; // version
+	mip_indices_data[5] = mip_indices.len() as u8;
+	mip_indices_data[6..(6 + mip_indices.len())].copy_from_slice(&mip_indices);
+
+	dest.write_all(&mip_indices_data)?;
+	
+	Ok(())
+}
+
+pub fn write_vtf_high_res_data(
+	mut dest: impl Write,
+	images: &[&[RgbaImage]],
+	texture_format: TextureFormat,
+	m0_width: u32,
+	m0_height: u32
+) -> std::io::Result<()> {
+	for (mip_level, &frames) in images.into_iter().enumerate().rev() {
+		let mip_level = mip_level as u32;
+		let w = m0_width >> mip_level;
+		let h = m0_height >> mip_level;
+
+		for frame in frames {
+			let mut resized = resize(frame, w, h);
+			resized.apply_color_space(Cicp::SRGB, ConvertColorOptions::default())
+				.expect("Failed to convert to srgb color space");
+			let compressed = compress(&resized, texture_format);
+
+			dest.write_all(&compressed)?;
+		}
+	}
+	
+	Ok(())
+}
+
+pub fn file_size(
 	width: u32,
 	height: u32,
 	frame_count: u32,
@@ -219,7 +263,7 @@ fn mip_counts(
 		})
 }
 
-fn find_lresolution(
+pub fn find_lresolution(
 	frame_count: u32,
 	minimum_mip_count: u32,
 	maximum_l_resolution: Option<u32>,

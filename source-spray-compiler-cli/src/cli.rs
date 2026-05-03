@@ -9,7 +9,7 @@ use source_spray_common::vtf::read_vtf;
 use source_spray_compiler_core::crc32_inverse::crc32_patch;
 use source_spray_compiler_core::crc32_writer::Crc32Writer;
 use source_spray_compiler_core::image_util::load_image;
-use source_spray_compiler_core::vtf::write_vtf;
+use source_spray_compiler_core::vtf::write_optimal_vtf;
 use std::fs::File;
 use std::io::{BufWriter, Cursor, Write};
 use std::path::{Path, PathBuf};
@@ -187,7 +187,7 @@ pub fn run() -> eyre::Result<()> {
 
 			let mut writer = BufWriter::new(file);
 			
-			write_vtf(
+			write_optimal_vtf(
 				&mut writer,
 				&images.iter()
 					.map(|frames| frames.as_deref())
@@ -371,7 +371,7 @@ pub fn run() -> eyre::Result<()> {
 			let buf_writer = BufWriter::new(output_file);
 			let mut writer = Crc32Writer::new(buf_writer);
 
-			write_vtf(
+			write_optimal_vtf(
 				&mut writer,
 				&[Some(&vec![thumbnail])],
 				None,

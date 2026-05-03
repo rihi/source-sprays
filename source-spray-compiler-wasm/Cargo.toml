@@ -1,0 +1,13 @@
+[package]
+name = "source-spray-compiler-wasm"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+source-spray-common = { path = "../source-spray-common" }
+source-spray-compiler-core = { path = "../source-spray-compiler-core" }
+wasm-bindgen.workspace = true
+image.workspace = true

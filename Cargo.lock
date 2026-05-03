@@ -1139,6 +1139,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "source-spray-compiler-wasm"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "source-spray-common",
+ "source-spray-compiler-core",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "source-spray-thumbnails"
 version = "0.1.0"
 dependencies = [

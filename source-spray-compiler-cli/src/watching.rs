@@ -5,7 +5,7 @@ use image::RgbaImage;
 use itertools::Itertools;
 use lazy_regex::regex_captures;
 use source_spray_compiler_core::image_util::load_image;
-use source_spray_compiler_core::vtf::write_vtf;
+use source_spray_compiler_core::vtf::write_optimal_vtf;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::{File, FileTimes};
@@ -115,7 +115,7 @@ pub fn convert_generic(
 
 	let mut writer = BufWriter::new(&file);
 
-	write_vtf(
+	write_optimal_vtf(
 		&mut writer,
 		images,
 		lowest_mip_resolution,
