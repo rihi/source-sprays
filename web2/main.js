@@ -125,8 +125,8 @@ function renderResults(settings) {
 function renderGrid(settings, statusMessage) {
   els.imageGrid.replaceChildren();
   els.imageGrid.className = "image-grid";
-  els.imageGrid.style.gridTemplateColumns = "";
-  els.imageGrid.style.gridTemplateRows = "";
+  els.imageGrid.style.removeProperty("--cols");
+  els.imageGrid.style.removeProperty("--rows");
 
   if (!optimal) {
     els.imageGrid.classList.add("placeholder-mode");
@@ -142,10 +142,10 @@ function renderGrid(settings, statusMessage) {
   const offsetCols = showMipHeader ? 1 : 0;
   const offsetRows = showFrameHeader ? 1 : 0;
 
-  if (frames === 1 && rows === 1) els.imageGrid.classList.add("single");
-  if ((frames === 1) !== (rows === 1)) els.imageGrid.classList.add("one-axis");
-  els.imageGrid.style.gridTemplateColumns = `${showMipHeader ? "96px " : ""}repeat(${frames}, var(--slot-size))`;
-  els.imageGrid.style.gridTemplateRows = `${showFrameHeader ? "34px " : ""}repeat(${rows}, var(--slot-size))`;
+  if (showMipHeader) els.imageGrid.classList.add("has-row-header");
+  if (showFrameHeader) els.imageGrid.classList.add("has-column-header");
+  els.imageGrid.style.setProperty("--cols", String(frames));
+  els.imageGrid.style.setProperty("--rows", String(rows));
 
   if (showFrameHeader && showMipHeader) {
     const corner = div("grid-header corner", "");
