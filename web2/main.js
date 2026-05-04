@@ -14,7 +14,6 @@ const els = {
   wasmOverlayMessage: document.querySelector("#wasmOverlayMessage"),
 };
 
-let wasmReady = false;
 let wasmApi = null;
 let optimal = null;
 let slots = new Map();
@@ -31,9 +30,7 @@ import("./pkg/source_spray_compiler_wasm.js")
     throw error;
   })
   .then(() => {
-    wasmReady = true;
     document.body.classList.remove("wasm-loading", "wasm-failed");
-    setStatus("Ready.");
     update();
   });
 
@@ -44,7 +41,9 @@ els.settings.addEventListener("input", () => {
 els.fileInput.addEventListener("change", async () => {
   const file = els.fileInput.files?.[0];
   els.fileInput.value = "";
-  if (!file || !activeSlotKey) return;
+  if (!file || !activeSlotKey)
+    return;
+  
   await loadFileIntoSlot(file, activeSlotKey);
 });
 
@@ -53,8 +52,8 @@ els.exportButton.addEventListener("click", exportCurrentVtf);
 function getSettings() {
   const textureValue = document.querySelector("input[name='textureFormat']:checked").value;
   return {
-    sizeLimitBytes: clampInt(els.sizeLimit.value, 1, Number.MAX_SAFE_INTEGER) * 1024,
-    desiredResolution: clampInt(els.desiredResolution.value, 4, 16384),
+    sizeLimitBytes: clampInt(els.sizeLimit.value, 1, 0xFFFFFFFF) * 1024,
+    desiredResolution: clampInt(els.desiredResolution.value, 4, 0xFFFFFFFF),
     frameCount: clampInt(els.frameCount.value, 1, 64),
     lowestMipResolution: els.lowestMipEnabled.checked ? 32 : undefined,
     textureFormat: textureValue,
@@ -76,10 +75,6 @@ function update() {
   const settings = getSettings();
   optimal = null;
   let parameterError = "";
-
-  if (!wasmReady) {
-    return;
-  }
 
   try {
     optimal = wasmApi.find_optimal_parameters(
@@ -263,12 +258,12 @@ async function loadFileIntoSlot(file, key) {
   try {
     const image = await decodeImage(file);
     const previous = slots.get(key);
-    if (previous) revokeSlot(previous);
+    if (previous) 
+      revokeSlot(previous);
     slots.set(key, image);
-    setStatus("Image loaded.");
     update();
   } catch (error) {
-    setStatus(`Could not load image: ${error.message}`, true);
+    console.log("Could not load image:", error);
   }
 }
 
@@ -309,9 +304,11 @@ function updateExportState(settings) {
 }
 
 function exportDisabledReason(settings) {
-  if (!wasmReady) return "Wasm package is not loaded.";
-  if (!optimal) return "No valid parameters were found for the current limits.";
-  if (!allFramesHaveImages(settings.frameCount)) return "Each frame column needs at least one image.";
+  if (!optimal)
+    return "No valid parameters were found for the current limits.";
+  if (!allFramesHaveImages(settings.frameCount))
+    return "Each frame column needs at least one image.";
+  
   return "";
 }
 
@@ -346,10 +343,12 @@ async function exportCurrentVtf() {
 
   try {
     const wasmImages = new wasmApi.WasmImages();
-    const usedMips = [];
-
+    const usedMips = slots.keys()
+        .map(key => key.split(":")[1])
+        .toArray()
+        .filter((value, index, self) => self.indexOf(value) === index)
+    
     for (let mip = 0; mip <= optimal.mip_count; mip += 1) {
-      if (hasOwnMip(mip, settings.frameCount)) usedMips.push(mip);
       for (let frame = 0; frame < settings.frameCount; frame += 1) {
         const source = slots.get(slotKey(frame, mip)) ?? findInheritedSlot(frame, mip);
         wasmImages.push_image(source.width, source.height, source.rgba);
@@ -367,20 +366,11 @@ async function exportCurrentVtf() {
     );
     downloadBytes(bytes, "spray.vtf");
     setStatus(`Exported ${formatBytes(bytes.length)}.`);
-  } catch (error) {
-    setStatus(`Export failed: ${error.message}`, true);
   } finally {
     exportInProgress = false;
     els.exportButton.textContent = "Export VTF";
     update();
   }
-}
-
-function hasOwnMip(mip, frameCount) {
-  for (let frame = 0; frame < frameCount; frame += 1) {
-    if (slots.has(slotKey(frame, mip))) return true;
-  }
-  return false;
 }
 
 function downloadBytes(bytes, filename) {
