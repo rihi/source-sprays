@@ -26,14 +26,15 @@ import("./pkg/source_spray_compiler_wasm.js")
     await module.default();
     wasmApi = module;
   })
+  .catch((error) => {
+    showWasmLoadError(error);
+    throw error;
+  })
   .then(() => {
     wasmReady = true;
     document.body.classList.remove("wasm-loading", "wasm-failed");
     setStatus("Ready.");
     update();
-  })
-  .catch((error) => {
-    showWasmLoadError(error);
   });
 
 els.settings.addEventListener("input", () => {
@@ -418,7 +419,7 @@ function setStatus(message, isError = false) {
 function showWasmLoadError(error) {
   document.body.classList.remove("wasm-loading");
   document.body.classList.add("wasm-failed");
-  els.wasmOverlayTitle.textContent = "An internal error occurred";
+  els.wasmOverlayTitle.textContent = "An error occurred loading wasm";
   els.wasmOverlayMessage.textContent = error;
 }
 
