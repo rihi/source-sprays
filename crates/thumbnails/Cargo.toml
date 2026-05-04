@@ -10,4 +10,4 @@ crate-type = ["cdylib"]
 windows-core.workspace = true
 windows.workspace = true
 winreg.workspace = true
-source-spray-common = { path = "../source-spray-common" }
+source-spray-common = { path = "../common" }

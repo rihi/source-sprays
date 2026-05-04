@@ -9,14 +9,14 @@ use std::sync::atomic::Ordering;
 
 use crate::class_factory::MyClassFactory;
 use crate::module::GLOBAL_REF_COUNT;
+use crate::registry::{register, unregister};
+use windows::Win32::System::LibraryLoader::GetModuleFileNameW;
 use windows::{
     core::*,
     Win32::Foundation::*,
     Win32::System::Com::*,
     Win32::System::SystemServices::DLL_PROCESS_ATTACH
 };
-use windows::Win32::System::LibraryLoader::GetModuleFileNameW;
-use crate::registry::{register, unregister};
 
 static mut DLL_INSTANCE: HINSTANCE = HINSTANCE(std::ptr::null_mut());
 

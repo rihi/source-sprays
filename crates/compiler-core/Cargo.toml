@@ -9,4 +9,4 @@ crc32fast.workspace = true
 image.workspace = true
 itertools.workspace = true
 fast_image_resize.workspace = true
-source-spray-common = { path = "../source-spray-common" }
+source-spray-common = { path = "../common" }

@@ -12,5 +12,5 @@ itertools.workspace = true
 lazy-regex.workspace = true
 notify.workspace = true
 walkdir.workspace = true
-source-spray-common = { path = "../source-spray-common" }
-source-spray-compiler-core = { path = "../source-spray-compiler-core" }
+source-spray-common = { path = "../common" }
+source-spray-compiler-core = { path = "../compiler-core" }
