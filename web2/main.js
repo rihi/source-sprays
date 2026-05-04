@@ -97,9 +97,6 @@ function update() {
   pruneSlots(settings);
   renderResults(settings);
   const exportReason = exportDisabledReason(settings);
-  if (!parameterError) {
-    setStatus(exportReason || "Ready to export.", exportReason.includes("No valid"));
-  }
   renderGrid(settings, parameterError || exportReason);
   updateExportState(settings);
 }
@@ -304,7 +301,7 @@ function updateExportState(settings) {
   els.exportButton.title = reason || "Export the current grid as a VTF file.";
   if (exportInProgress) return;
   if (reason) {
-    setStatus(reason, reason.includes("No valid"));
+    setStatus(reason, reason !== "");
   } else {
     setStatus("Ready to export.");
   }
@@ -415,7 +412,7 @@ function revokeSlot(slot) {
 
 function setStatus(message, isError = false) {
   els.statusText.textContent = message;
-  els.statusText.classList.toggle("error", isError);
+  els.statusText.classList.toggle("error", isError)
 }
 
 function showWasmLoadError(error) {
@@ -423,7 +420,6 @@ function showWasmLoadError(error) {
   document.body.classList.add("wasm-failed");
   els.wasmOverlayTitle.textContent = "An internal error occurred";
   els.wasmOverlayMessage.textContent = error;
-  setStatus("An internal error occurred", true);
 }
 
 function slotKey(frame, mip) {
