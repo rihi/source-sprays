@@ -309,12 +309,10 @@ input:disabled {
 }
 
 .image-slot {
-  position: relative;
-  width: var(--slot-size);
-  height: var(--slot-size);
   overflow: hidden;
   display: grid;
   place-items: center;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background-color: #d8dee6;
@@ -332,11 +330,16 @@ input:disabled {
   outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
+.image-slot > * {
+  grid-area: 1 / 1;
+}
+
 .image-slot img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  image-rendering: auto;
+  min-height: 0;
+  min-width: 0;
 }
 
 .image-slot.is-own {
@@ -355,12 +358,11 @@ input:disabled {
 }
 
 .slot-label {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
+  place-self: end stretch;
+  height: auto;
   min-height: 22px;
   padding: 3px 6px;
+  margin: 3px 6px;
   overflow: hidden;
   border-radius: 5px;
   background: rgb(255 255 255 / 88%);
@@ -369,6 +371,10 @@ input:disabled {
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.image-slot.is-inherited .slot-label {
+  z-index: 0; /* Because transparent imgs cause a new stacking context. This also causes one for the labels */
 }
 
 .image-slot.is-inherited .slot-label {
