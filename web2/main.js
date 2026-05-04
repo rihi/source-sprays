@@ -156,8 +156,8 @@ function renderGrid(settings, statusMessage) {
 
   if (showFrameHeader) {
     for (let frame = 0; frame < frames; frame += 1) {
-      const header = div("grid-header", `Frame ${frame}`);
-      header.style.gridColumn = String(frame + 1 + offsetCols);
+      const header = div("grid-header", `Frame ${frame + 1}`);
+      header.style.gridColumn = String(1 + offsetCols + frame);
       header.style.gridRow = "1";
       els.imageGrid.append(header);
     }
@@ -168,7 +168,7 @@ function renderGrid(settings, statusMessage) {
       const { width, height } = mipDimensions(mip);
       const header = div("row-header", `Mip ${mip}\n${width} x ${height}`);
       header.style.gridColumn = "1";
-      header.style.gridRow = String(mip + 1 + offsetRows);
+      header.style.gridRow = String(1 + offsetRows + mip);
       els.imageGrid.append(header);
     }
   }
@@ -176,8 +176,8 @@ function renderGrid(settings, statusMessage) {
   for (let mip = 0; mip < rows; mip += 1) {
     for (let frame = 0; frame < frames; frame += 1) {
       const slot = renderSlot(frame, mip);
-      slot.style.gridColumn = String(frame + 1 + offsetCols);
-      slot.style.gridRow = String(mip + 1 + offsetRows);
+      slot.style.gridColumn = String(1 + offsetCols + frame);
+      slot.style.gridRow = String(1 + offsetRows + mip);
       els.imageGrid.append(slot);
     }
   }
