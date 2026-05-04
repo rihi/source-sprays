@@ -425,12 +425,11 @@ function setStatus(message, isError = false) {
 }
 
 function showWasmLoadError(error) {
-  const message = `Could not load the WebAssembly package from ./pkg/source_spray_compiler_wasm.js. Build source-spray-compiler-wasm into web2/pkg before using this page. ${error.message}`;
   document.body.classList.remove("wasm-loading");
   document.body.classList.add("wasm-failed");
-  els.wasmOverlayTitle.textContent = "Compiler failed to load";
-  els.wasmOverlayMessage.textContent = message;
-  setStatus(message, true);
+  els.wasmOverlayTitle.textContent = "An internal error occurred";
+  els.wasmOverlayMessage.textContent = error;
+  setStatus("An internal error occurred", true);
 }
 
 function slotKey(frame, mip) {
