@@ -107,12 +107,15 @@ body {
 .field {
   display: grid;
   gap: 5px;
+}
+
+.field,
+.radio-group {
   font-size: 13px;
   font-weight: 600;
 }
 
 .field span,
-.fieldset-title,
 .radio-group legend {
   color: #344150;
 }
@@ -149,18 +152,6 @@ input:disabled {
   font-size: 12px;
 }
 
-.fieldset {
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-
-.fieldset-title,
-.radio-group legend {
-  font-size: 13px;
-  font-weight: 700;
-}
-
 .toggle-row,
 .radio-group label {
   display: flex;
@@ -173,10 +164,9 @@ input:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 9px 12px;
-  margin: 2px 0 0;
-  padding: 12px 0 0;
+  margin: 0;
+  padding: 5px 0 0;
   border: 0;
-  border-top: 1px solid var(--line);
 }
 
 .radio-group legend {

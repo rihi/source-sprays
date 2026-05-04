@@ -39,21 +39,13 @@
         <input id="frameCount" type="number" min="1" max="64" step="1" value="1">
       </label>
 
-      <section class="fieldset">
-        <div class="fieldset-title">Mips</div>
-        <label class="toggle-row">
+      <label class="field">
+        <span>Mips</span>
+        <div class="toggle-row">
           <input id="lowestMipEnabled" type="checkbox">
-          <span>Require mip below resolution</span>
-        </label>
-        <label class="field">
-          <span>Lowest mip resolution</span>
-          <input id="lowestMipResolution" type="number" min="4" step="4" value="32" disabled>
-        </label>
-        <label class="field">
-          <span>Minimum mips</span>
-          <input id="minMipCount" type="number" min="0" max="26" step="1" value="0">
-        </label>
-      </section>
+          <span>Generate Mip-Maps</span>
+        </div>
+      </label>
 
       <fieldset class="radio-group">
         <legend>Texture format</legend>

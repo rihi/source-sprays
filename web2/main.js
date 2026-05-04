@@ -4,8 +4,6 @@ const els = {
   desiredResolution: document.querySelector("#desiredResolution"),
   frameCount: document.querySelector("#frameCount"),
   lowestMipEnabled: document.querySelector("#lowestMipEnabled"),
-  lowestMipResolution: document.querySelector("#lowestMipResolution"),
-  minMipCount: document.querySelector("#minMipCount"),
   pickedResolution: document.querySelector("#pickedResolution"),
   fileSize: document.querySelector("#fileSize"),
   statusText: document.querySelector("#statusText"),
@@ -39,7 +37,6 @@ import("./pkg/source_spray_compiler_wasm.js")
   });
 
 els.settings.addEventListener("input", () => {
-  els.lowestMipResolution.disabled = !els.lowestMipEnabled.checked;
   update();
 });
 
@@ -58,10 +55,7 @@ function getSettings() {
     sizeLimitBytes: clampInt(els.sizeLimit.value, 1, Number.MAX_SAFE_INTEGER) * 1024,
     desiredResolution: clampInt(els.desiredResolution.value, 4, 16384),
     frameCount: clampInt(els.frameCount.value, 1, 64),
-    lowestMipResolution: els.lowestMipEnabled.checked
-      ? clampInt(els.lowestMipResolution.value, 4, 16384)
-      : undefined,
-    minMipCount: clampInt(els.minMipCount.value, 0, 26),
+    lowestMipResolution: els.lowestMipEnabled.checked ? 32 : undefined,
     textureFormat: textureValue,
   };
 }
@@ -89,7 +83,7 @@ function update() {
   try {
     optimal = wasmApi.find_optimal_parameters(
       settings.frameCount,
-      settings.minMipCount,
+      0,
       settings.lowestMipResolution,
       settings.desiredResolution,
       wasmTextureFormat(settings.textureFormat),
