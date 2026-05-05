@@ -20,19 +20,14 @@ let slots = new Map();
 let activeSlotKey = null;
 let exportInProgress = false;
 
-import("./pkg/source_spray_compiler_wasm.js")
-  .then(async (module) => {
-    await module.default();
-    wasmApi = module;
-  })
-  .catch((error) => {
-    showWasmLoadError(error);
-    throw error;
-  })
-  .then(() => {
-    document.body.classList.remove("wasm-loading", "wasm-failed");
-    update();
-  });
+addEventListener("TrunkApplicationStarted", (event) => {
+  wasmApi = window.wasmBindings;
+  document.body.classList.remove("wasm-loading", "wasm-failed");
+  update();
+});
+window.failApp = (error) => {
+  showWasmLoadError(error);
+}
 
 els.settings.addEventListener("input", () => {
   update();
