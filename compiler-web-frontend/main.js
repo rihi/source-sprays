@@ -82,14 +82,20 @@ function update() {
     );
   } catch (error) {
     parameterError = error.message;
-    setStatus(parameterError, true);
   }
-
+  
+  const exportReason = exportDisabledReason(settings);
+  const errorMessage = parameterError || exportReason;
+  
   pruneSlots(settings);
   renderResults(settings);
-  const exportReason = exportDisabledReason(settings);
-  renderGrid(settings, parameterError || exportReason);
+  renderGrid(settings, errorMessage);
   updateExportState(settings);
+
+  const statusMessage = exportInProgress 
+      ? "Exporting VTF. This can take a few seconds." 
+      : errorMessage || "Ready to export."  
+  setStatus(statusMessage, errorMessage !== "")
 }
 
 function renderResults(settings) {
@@ -287,14 +293,13 @@ async function decodeImage(file) {
 }
 
 function updateExportState(settings) {
-  const reason = exportDisabledReason(settings);
-  els.exportButton.disabled = Boolean(reason);
-  els.exportButton.title = reason || "Export the current grid as a VTF file.";
-  if (exportInProgress) return;
-  if (reason) {
-    setStatus(reason, reason !== "");
+  if (exportInProgress) {
+    els.exportButton.disabled = true;
+    els.exportButton.textContent = "Exporting...";
   } else {
-    setStatus("Ready to export.");
+    const reason = exportDisabledReason(settings);
+    els.exportButton.disabled = Boolean(reason);
+    els.exportButton.title = reason || "Export the current grid as a VTF file.";
   }
 }
 
@@ -323,16 +328,7 @@ function allFramesHaveImages(frameCount) {
 
 async function exportCurrentVtf() {
   const settings = getSettings();
-  const reason = exportDisabledReason(settings);
-  if (reason) {
-    updateExportState(settings);
-    return;
-  }
-
   exportInProgress = true;
-  els.exportButton.disabled = true;
-  els.exportButton.textContent = "Exporting...";
-  setStatus("Exporting VTF. This can take a few seconds.");
 
   await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -360,7 +356,7 @@ async function exportCurrentVtf() {
       wasmTextureFormat(settings.textureFormat),
     );
     downloadBytes(bytes, "spray.vtf");
-    setStatus(`Exported ${formatBytes(bytes.length)}.`);
+    console.log(`Exported ${formatBytes(bytes.length)}.`);
   } finally {
     exportInProgress = false;
     els.exportButton.textContent = "Export VTF";
