@@ -3,3 +3,7 @@
 *.rs  text diff=rust
 *.toml text diff=toml
 Cargo.lock text
+
+*.html text
+*.js text
+*.css text
