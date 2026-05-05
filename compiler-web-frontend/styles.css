@@ -133,6 +133,8 @@ body {
 }
 
 .sidebar {
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow-y: auto;
   padding: var(--space-4);
@@ -449,6 +451,44 @@ input:disabled {
   font-weight: 700;
   line-height: 1.35;
   text-align: center;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-bottom: var(--space-2);
+}
+
+.footer-divider {
+  border: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  margin-bottom: var(--space-4);
+}
+
+.sidebar-footer p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.github-link:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+.github-link svg {
+  flex-shrink: 0;
 }
 
 @media (max-width: 760px) {
