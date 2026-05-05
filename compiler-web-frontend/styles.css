@@ -285,7 +285,6 @@ input:disabled {
   min-width: 0;
   height: 100vh;
   overflow: hidden;
-  padding: var(--space-4);
 }
 
 .grid-wrap {
@@ -297,8 +296,9 @@ input:disabled {
 }
 
 .image-grid {
-  --min-slot-size: 96px;
+  --padding: var(--space-4);
   --grid-gap: var(--space-3);
+  --min-slot-size: 96px;
   --row-header-size: 96px;
   --column-header-size: 34px;
 
@@ -307,8 +307,8 @@ input:disabled {
   --header-cols: 0;
   --header-rows: 0;
 
-  --slot-size-x: calc((100cqw - (var(--header-cols) * var(--row-header-size)) - ((var(--cols) + var(--header-cols) - 1) * var(--grid-gap))) / var(--cols));
-  --slot-size-y: calc((100cqh - (var(--header-rows) * var(--column-header-size)) - ((var(--rows) + var(--header-rows) - 1) * var(--grid-gap))) / var(--rows));
+  --slot-size-x: calc((100cqw - (var(--header-cols) * var(--row-header-size)) - ((var(--cols) + var(--header-cols) - 1) * var(--grid-gap)) - var(--padding) * 2) / var(--cols));
+  --slot-size-y: calc((100cqh - (var(--header-rows) * var(--column-header-size)) - ((var(--rows) + var(--header-rows) - 1) * var(--grid-gap)) - var(--padding) * 2) / var(--rows));
   --slot-size: max(var(--min-slot-size), min(var(--slot-size-x), var(--slot-size-y)));
 
   display: grid;
@@ -318,6 +318,7 @@ input:disabled {
   align-items: stretch;
   place-content: center;
 
+  padding: var(--padding);
   width: max-content;
   height: max-content;
   min-width: 100%;
