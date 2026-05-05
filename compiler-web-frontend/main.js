@@ -49,7 +49,7 @@ function getSettings() {
   return {
     sizeLimitBytes: clampInt(els.sizeLimit.value, 1, 0xFFFFFFFF) * 1024,
     desiredResolution: clampInt(els.desiredResolution.value, 4, 0xFFFFFFFF),
-    frameCount: clampInt(els.frameCount.value, 1, 64),
+    frameCount: clampInt(els.frameCount.value, 1, 0xFFFFFFFF),
     lowestMipResolution: els.lowestMipEnabled.checked ? 32 : undefined,
     textureFormat: textureValue,
   };
