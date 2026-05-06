@@ -1,4 +1,5 @@
 import initWasm, * as wasmBindings from "./pkg/source_spray_compiler_wasm.js";
+import {exportVtf, hasPendingVtfExports} from "./vtf-export-client.js";
 
 const els = {
   settings: document.querySelector("#settings"),
@@ -20,7 +21,6 @@ let wasmApi = null;
 let optimal = null;
 let slots = new Map();
 let activeSlotKey = null;
-let exportInProgress = false;
 
 initializeWasm();
 
@@ -98,7 +98,7 @@ function update() {
   renderGrid(settings, errorMessage);
   updateExportState(settings);
 
-  const statusMessage = exportInProgress 
+  const statusMessage = hasPendingVtfExports()
       ? "Exporting VTF. This can take a few seconds." 
       : errorMessage || "Ready to export."  
   setStatus(statusMessage, errorMessage !== "")
@@ -299,7 +299,7 @@ async function decodeImage(file) {
 }
 
 function updateExportState(settings) {
-  if (exportInProgress) {
+  if (hasPendingVtfExports()) {
     els.exportButton.disabled = true;
     els.exportButton.textContent = "Exporting...";
   } else {
@@ -334,37 +334,45 @@ function allFramesHaveImages(frameCount) {
 
 async function exportCurrentVtf() {
   const settings = getSettings();
-  exportInProgress = true;
-
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  let exportError = null;
 
   try {
-    const wasmImages = new wasmApi.WasmImages();
-    const usedMips = Array.from(slots.keys(), key => key.split(":")[1])
-        .filter((value, index, self) => self.indexOf(value) === index)
-    
+    const images = [];
+    const usedMips = Array.from(slots.keys(), key => Number(key.split(":")[1]))
+      .filter((value, index, self) => self.indexOf(value) === index);
+
     for (let mip = 0; mip <= optimal.mip_count; mip += 1) {
       for (let frame = 0; frame < settings.frameCount; frame += 1) {
         const source = slots.get(slotKey(frame, mip)) ?? findInheritedSlot(frame, mip);
-        wasmImages.push_image(source.width, source.height, source.rgba);
+        images.push({
+          width: source.width,
+          height: source.height,
+          rgba: source.rgba,
+        });
       }
     }
 
-    const bytes = wasmApi.export_vtf(
-      wasmImages,
-      Uint8Array.from(usedMips),
+    const exportRequest = exportVtf(
+      images,
+      usedMips,
       optimal.mn_res_lower,
       optimal.mn_res_greater,
       optimal.mip_count,
       settings.frameCount,
-      wasmTextureFormat(settings.textureFormat),
+      settings.textureFormat,
     );
+    update();
+    const bytes = await exportRequest;
     downloadBytes(bytes, "spray.vtf");
     console.log(`Exported ${formatBytes(bytes.length)}.`);
+  } catch (error) {
+    exportError = error;
+    console.error("Could not export VTF:", error);
   } finally {
-    exportInProgress = false;
     els.exportButton.textContent = "Export VTF";
     update();
+    if (exportError)
+      setStatus(exportError.message || "Could not export VTF.", true);
   }
 }
 
