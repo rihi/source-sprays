@@ -108,7 +108,6 @@ function renderResults(settings) {
   if (!optimal) {
     els.pickedResolution.textContent = "-";
     els.fileSize.textContent = "-";
-    return;
   } else {
     const { width, height } = mipDimensions(0);
     els.pickedResolution.textContent = `${width} x ${height}`;
