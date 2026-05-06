@@ -5,8 +5,8 @@ const pendingExportRequests = new Map();
 export function exportVtf(
   images,
   usedMips,
-  mnResLower,
-  mnResGreater,
+  mnWidth,
+  mnHeight,
   mipCount,
   frameCount,
   textureFormat,
@@ -16,8 +16,8 @@ export function exportVtf(
   const { payload, transferList } = buildTransferablePayload(
     images,
     usedMips,
-    mnResLower,
-    mnResGreater,
+    mnWidth,
+    mnHeight,
     mipCount,
     frameCount,
     textureFormat,
@@ -42,8 +42,8 @@ export function hasPendingVtfExports() {
 function buildTransferablePayload(
   images,
   usedMips,
-  mnResLower,
-  mnResGreater,
+  mnWidth,
+  mnHeight,
   mipCount,
   frameCount,
   textureFormat,
@@ -63,8 +63,8 @@ function buildTransferablePayload(
     payload: {
       images: transferableImages,
       usedMips,
-      mnResLower,
-      mnResGreater,
+      mnWidth,
+      mnHeight,
       mipCount,
       frameCount,
       textureFormat,

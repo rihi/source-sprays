@@ -352,11 +352,12 @@ async function exportCurrentVtf() {
       }
     }
 
+    const mnDimensions = mipDimensions(optimal.mip_count);
     const exportRequest = exportVtf(
       images,
       usedMips,
-      optimal.mn_res_lower,
-      optimal.mn_res_greater,
+      mnDimensions.width,
+      mnDimensions.height,
       optimal.mip_count,
       settings.frameCount,
       settings.textureFormat,

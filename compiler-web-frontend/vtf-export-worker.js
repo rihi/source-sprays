@@ -25,8 +25,8 @@ function exportVtf(payload) {
     return export_vtf(
       wasmImages,
       Uint8Array.from(payload.usedMips),
-      payload.mnResLower,
-      payload.mnResGreater,
+      payload.mnWidth,
+      payload.mnHeight,
       payload.mipCount,
       payload.frameCount,
       wasmTextureFormat(payload.textureFormat),

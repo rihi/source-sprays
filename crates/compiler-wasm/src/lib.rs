@@ -101,8 +101,8 @@ impl WasmImages {
 pub fn export_vtf(
     images: &WasmImages,
     used_mips: Vec<u8>,
-    mn_res_lower: u32,
-    mn_res_greater: u32,
+    mn_width: u32,
+    mn_height: u32,
     mip_count: u32,
     frame_count: u32,
     texture_format: WasmTextureFormat,
@@ -116,11 +116,11 @@ pub fn export_vtf(
     if used_mips.iter().any(|&mip| u32::from(mip) > mip_count) {
         return Err(JsError::new("used_mips cannot contain entries greater than mip_count"));
     }
-    if mn_res_greater == 0 || mn_res_lower == 0 {
-        return Err(JsError::new("mn_major_res and mn_minor_res must be greater than 0"));
+    if mn_width == 0 || mn_height == 0 {
+        return Err(JsError::new("mn_width and mn_height must be greater than 0"));
     }
-    if mn_res_greater % 4 != 0 || mn_res_lower % 4 != 0 {
-        return Err(JsError::new("mn_major_res and mn_minor_res must be multiples of 4"));
+    if mn_width % 4 != 0 || mn_height % 4 != 0 {
+        return Err(JsError::new("mn_width and mn_height must be multiples of 4"));
     }
     let expected_image_count = (frame_count * (mip_count + 1)) as usize;
     let image_count = images.len();
@@ -131,13 +131,6 @@ pub fn export_vtf(
     let images: Vec<_> = images
         .chunks_exact(frame_count as usize)
         .collect();
-    
-    let main_first_frame = &images[0][0];
-    let (mn_width, mn_height) = if main_first_frame.width() <= main_first_frame.height() {
-        (mn_res_greater, mn_res_lower)
-    } else {
-        (mn_res_lower, mn_res_greater)
-    };
 
     let m0_width = mn_width << mip_count;
     let m0_height = mn_height << mip_count;
