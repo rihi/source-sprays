@@ -1,3 +1,5 @@
+import initWasm, * as wasmBindings from "./pkg/source_spray_compiler_wasm.js";
+
 const els = {
   settings: document.querySelector("#settings"),
   sizeLimit: document.querySelector("#sizeLimit"),
@@ -20,13 +22,17 @@ let slots = new Map();
 let activeSlotKey = null;
 let exportInProgress = false;
 
-addEventListener("TrunkApplicationStarted", (event) => {
-  wasmApi = window.wasmBindings;
-  document.body.classList.remove("wasm-loading", "wasm-failed");
-  update();
-});
-window.failApp = (error) => {
-  showWasmLoadError(error);
+initializeWasm();
+
+async function initializeWasm() {
+  try {
+    await initWasm();
+    wasmApi = wasmBindings;
+    document.body.classList.remove("wasm-loading", "wasm-failed");
+    update();
+  } catch (error) {
+    showWasmLoadError(error);
+  }
 }
 
 els.settings.addEventListener("input", () => {
@@ -334,9 +340,7 @@ async function exportCurrentVtf() {
 
   try {
     const wasmImages = new wasmApi.WasmImages();
-    const usedMips = slots.keys()
-        .map(key => key.split(":")[1])
-        .toArray()
+    const usedMips = Array.from(slots.keys(), key => key.split(":")[1])
         .filter((value, index, self) => self.indexOf(value) === index)
     
     for (let mip = 0; mip <= optimal.mip_count; mip += 1) {
