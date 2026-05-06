@@ -261,17 +261,10 @@ pub fn run() -> eyre::Result<()> {
 				.wrap_err("Error on watching directory")?;
 			
 			let compile_potential_def = |path: &Path| {
-				if !is_spray_def(path) {
-					return
-				}
-				
-				let vtf_path = if recursive {
-					&path_vtf_for_def(path, &input_path, &output_path)
-				} else {
-					if path != input_path {
-						return
-					}
-					&output_path
+				let vtf_path = match recursive {
+					true if is_spray_def(path) => &path_vtf_for_def(path, &input_path, &output_path),
+					false if path == input_path => &output_path,
+					_ => return
 				};
 				compile_spray_def(path, vtf_path, lowest_mip_resolution, desired_resolution, size_limit, recursive);
 			};
@@ -282,7 +275,7 @@ pub fn run() -> eyre::Result<()> {
 				}
 			};
 			let on_file_gone = |path: &Path| {
-				if is_spray_def(&path) && (recursive || input_path == *path) {
+				if (recursive && is_spray_def(path)) || (!recursive && input_path == *path) {
 					delete_spray_def(path, &input_path, &output_path);
 				}
 				if let Some(parent) = path.parent() {
