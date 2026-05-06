@@ -242,13 +242,34 @@ function findInheritedSlot(frame, mip) {
 }
 
 function mipDimensions(mip) {
-  const mainSource = slots.get(slotKey(0, 0)) ?? findInheritedSlot(0, 0);
-  const portraitOrSquare = mainSource ? mainSource.width <= mainSource.height : true;
-  const lower = optimal.mn_res_lower << optimal.mip_count;
-  const greater = optimal.mn_res_greater << optimal.mip_count;
-  const width = (portraitOrSquare ? greater : lower) >> mip;
-  const height = (portraitOrSquare ? lower : greater) >> mip;
+  const { width: mnWidth, height: mnHeight } = mnDimensions();
+  const width = mnWidth << (optimal.mip_count - mip);
+  const height = mnHeight << (optimal.mip_count - mip);
   return { width, height };
+}
+
+function mnDimensions() {
+  const usePortrait = shouldUsePortraitDimensions();
+  const width = usePortrait ? optimal.mn_res_greater : optimal.mn_res_lower;
+  const height = usePortrait ? optimal.mn_res_lower : optimal.mn_res_greater;
+  return { width, height };
+}
+
+function shouldUsePortraitDimensions() {
+  const settings = getSettings();
+  let totalWidth = 0;
+  let totalHeight = 0;
+
+  for (let frame = 0; frame < settings.frameCount; frame += 1) {
+    const source = slots.get(slotKey(frame, 0)) ?? findInheritedSlot(frame, 0);
+    if (!source)
+      continue;
+
+    totalWidth += source.width;
+    totalHeight += source.height;
+  }
+
+  return totalWidth <= totalHeight;
 }
 
 function vtfFileSize(settings) {
@@ -352,12 +373,12 @@ async function exportCurrentVtf() {
       }
     }
 
-    const mnDimensions = mipDimensions(optimal.mip_count);
+    const { width: mnWidth, height: mnHeight } = mnDimensions();
     const exportRequest = exportVtf(
       images,
       usedMips,
-      mnDimensions.width,
-      mnDimensions.height,
+      mnWidth,
+      mnHeight,
       optimal.mip_count,
       settings.frameCount,
       settings.textureFormat,
