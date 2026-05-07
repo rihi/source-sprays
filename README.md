@@ -5,7 +5,7 @@ This repository contains primarily Rust tools I made for working with Source Eng
 The main functionality is building spray VTF files from image inputs, including sprays with
 multiple animation frames and explicit mip levels. The project contains a browser tool for quick
 use, a CLI for local or scripted builds, and a Windows thumbnail provider for previewing VTF files
-in Explorer.
+in Explorer. Generated VTF files currently use VTF version 7.4.
 
 ## Tools
 
