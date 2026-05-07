@@ -333,9 +333,22 @@ function exportDisabledReason(settings) {
   if (!optimal)
     return "No valid parameters were found for the current limits.";
   if (!allFramesHaveImages(settings.frameCount))
-    return "Each frame column needs at least one image.";
+    return missingImageReason(settings);
   
   return "";
+}
+
+function missingImageReason(settings) {
+  const hasMultipleFrames = settings.frameCount > 1;
+  const hasMipLevels = optimal.mip_count > 0;
+
+  if (hasMultipleFrames && hasMipLevels)
+    return "Each frame column needs at least one image.";
+  if (hasMultipleFrames)
+    return "Each frame needs an image.";
+  if (hasMipLevels)
+    return "At least one mip level needs an image.";
+  return "Select an image before exporting.";
 }
 
 function allFramesHaveImages(frameCount) {
