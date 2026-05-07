@@ -17,6 +17,16 @@ const els = {
   wasmOverlayMessage: document.querySelector("#wasmOverlayMessage"),
 };
 
+const MAX_WASM_U32 = 2 ** 32 - 1;
+const MAX_VTF_U16 = 2 ** 16 - 1;
+const RESOLUTION_STEP = 4;
+
+const numericLimits = {
+  sizeLimit: { min: 1, max: Math.floor(MAX_WASM_U32 / 1024) },
+  desiredResolution: { min: RESOLUTION_STEP, max: MAX_VTF_U16 - (MAX_VTF_U16 % RESOLUTION_STEP) },
+  frameCount: { min: 1, max: MAX_VTF_U16 },
+};
+
 let wasmApi = null;
 let optimal = null;
 let slots = new Map();
@@ -39,6 +49,14 @@ els.settings.addEventListener("input", () => {
   update();
 });
 
+for (const [key, limits] of Object.entries(numericLimits)) {
+  els[key].min = String(limits.min);
+  els[key].max = String(limits.max);
+  els[key].addEventListener("change", () => {
+    els[key].value = String(clampInt(els[key].value, limits));
+  });
+}
+
 els.fileInput.addEventListener("change", async () => {
   const file = els.fileInput.files?.[0];
   els.fileInput.value = "";
@@ -53,15 +71,15 @@ els.exportButton.addEventListener("click", exportCurrentVtf);
 function getSettings() {
   const textureValue = document.querySelector("input[name='textureFormat']:checked").value;
   return {
-    sizeLimitBytes: clampInt(els.sizeLimit.value, 1, 0xFFFFFFFF) * 1024,
-    desiredResolution: clampInt(els.desiredResolution.value, 4, 0xFFFFFFFF),
-    frameCount: clampInt(els.frameCount.value, 1, 0xFFFFFFFF),
+    sizeLimitBytes: clampInt(els.sizeLimit.value, numericLimits.sizeLimit) * 1024,
+    desiredResolution: clampInt(els.desiredResolution.value, numericLimits.desiredResolution),
+    frameCount: clampInt(els.frameCount.value, numericLimits.frameCount),
     lowestMipResolution: els.lowestMipEnabled.checked ? 32 : undefined,
     textureFormat: textureValue,
   };
 }
 
-function clampInt(value, min, max) {
+function clampInt(value, { min, max }) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return min;
   return Math.min(max, Math.max(min, parsed));
