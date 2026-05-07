@@ -22,28 +22,28 @@
 
     <form id="settings" class="settings">
       <label class="field">
-        <span>File size limit</span>
+        <span class="field-label">File size limit</span>
         <div class="inline-input">
           <input id="sizeLimit" type="number" min="1" step="1" value="512">
-          <span>KiB</span>
+          <span class="input-unit">KiB</span>
         </div>
       </label>
 
       <label class="field">
-        <span>Desired max resolution</span>
+        <span class="field-label">Desired max resolution</span>
         <input id="desiredResolution" type="number" min="4" step="4" value="1024">
       </label>
 
       <label class="field">
-        <span>Frames</span>
+        <span class="field-label">Frames</span>
         <input id="frameCount" type="number" min="1" step="1" value="1">
       </label>
 
       <label class="field">
-        <span>Mips</span>
+        <span class="field-label">Mip levels</span>
         <div class="toggle-row">
           <input id="lowestMipEnabled" type="checkbox">
-          <span>Generate Mip-Maps</span>
+          <span>Generate mipmaps</span>
         </div>
       </label>
 

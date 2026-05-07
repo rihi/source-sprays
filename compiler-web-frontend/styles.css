@@ -156,7 +156,6 @@ body {
 }
 
 .settings,
-.fieldset,
 .result-panel {
   display: grid;
   gap: var(--space-3);
@@ -173,7 +172,7 @@ body {
   font-weight: 600;
 }
 
-.field span,
+.field-label,
 .radio-group legend {
   color: var(--color-text-secondary);
 }
@@ -205,7 +204,7 @@ input:disabled {
   gap: var(--space-2);
 }
 
-.inline-input span {
+.input-unit {
   color: var(--color-text-muted);
   font-size: var(--text-xs);
 }
