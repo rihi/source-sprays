@@ -6,6 +6,7 @@
   --text-lg: 20px;
   --text-xl: 24px;
 
+  --space-half: 2px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -229,6 +230,14 @@ input:disabled {
   align-items: center;
   gap: var(--space-2);
   font-size: var(--text-sm);
+}
+
+.radio-group small {
+  display: block;
+  margin-top: var(--space-half);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
 }
 
 .result-panel {
