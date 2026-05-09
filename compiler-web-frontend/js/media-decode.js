@@ -1,16 +1,22 @@
-export async function decodeImportedFrames(files, options, onProgress) {
+export async function decodeImportedFrames(files, options, onProgress, signal) {
   if (files.length === 1 && files[0].type.startsWith("video/"))
-    return decodeVideoFrames(files[0], options, onProgress);
+    return decodeVideoFrames(files[0], options, onProgress, signal);
   if (files.length === 1 && isAnimatedImageFile(files[0]))
-    return decodeAnimatedImageFrames(files[0], options, onProgress);
+    return decodeAnimatedImageFrames(files[0], options, onProgress, signal);
 
   const imageFiles = files.filter(isStaticImageFile);
   const frames = [];
-  for (let index = 0; index < imageFiles.length; index += 1) {
-    onProgress?.(`Decoding image ${index + 1} of ${imageFiles.length}...`);
-    frames.push(await decodeImage(imageFiles[index]));
+  try {
+    for (let index = 0; index < imageFiles.length; index += 1) {
+      onProgress?.(`Decoding image ${index + 1} of ${imageFiles.length}...`);
+      frames.push(await decodeImage(imageFiles[index]));
+      signal?.throwIfAborted();
+    }
+    return frames;
+  } catch (error) {
+    revokeFrames(frames);
+    throw error;
   }
-  return frames;
 }
 
 export async function decodeImage(file) {
@@ -53,17 +59,18 @@ export function isTimedMediaFile(file) {
   return file.type.startsWith("video/") || isAnimatedImageFile(file);
 }
 
-async function decodeVideoFrames(file, options, onProgress) {
+async function decodeVideoFrames(file, options, onProgress, signal) {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.muted = true;
   video.preload = "metadata";
   video.src = url;
+  const frames = [];
 
   try {
-    await waitForEvent(video, "loadedmetadata");
+    await waitForEvent(video, "loadedmetadata", signal);
     if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
-      await waitForEvent(video, "loadeddata");
+      await waitForEvent(video, "loadeddata", signal);
 
     const startTime = Math.min(options.startTime, video.duration);
     const endTime = Number.isFinite(options.endTime)
@@ -71,15 +78,17 @@ async function decodeVideoFrames(file, options, onProgress) {
       : video.duration;
     const stepSeconds = options.frameTimeMs / 1000;
     const frameCount = Math.max(0, Math.ceil((endTime - startTime) / stepSeconds));
-    const frames = [];
 
     for (let time = startTime; time < endTime; time += stepSeconds) {
       onProgress?.(`Sampling frame ${frames.length + 1} of ${frameCount}...`);
-      await seekVideo(video, time);
+      await seekVideo(video, time, signal);
       frames.push(await imageFromCanvasSource(video, file.name, frames.length, time * 1000));
     }
 
     return frames;
+  } catch (error) {
+    revokeFrames(frames);
+    throw error;
   } finally {
     video.removeAttribute("src");
     video.load();
@@ -87,20 +96,21 @@ async function decodeVideoFrames(file, options, onProgress) {
   }
 }
 
-async function seekVideo(video, time) {
+async function seekVideo(video, time, signal) {
   if (Math.abs(video.currentTime - time) < 0.001 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA)
     return;
 
   video.currentTime = time;
-  await waitForEvent(video, "seeked");
+  await waitForEvent(video, "seeked", signal);
 }
 
-async function decodeAnimatedImageFrames(file, options, onProgress) {
+async function decodeAnimatedImageFrames(file, options, onProgress, signal) {
   if (!("ImageDecoder" in window))
     throw new Error("Animated image import requires ImageDecoder support in this browser.");
 
   const decoder = new ImageDecoder({ data: await file.arrayBuffer(), type: file.type });
   await decoder.tracks.ready;
+  signal?.throwIfAborted();
 
   const frameCount = decoder.tracks.selectedTrack.frameCount;
   const decodedFrames = [];
@@ -110,6 +120,7 @@ async function decodeAnimatedImageFrames(file, options, onProgress) {
     for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
       onProgress?.(`Decoding source frame ${frameIndex + 1} of ${frameCount}...`);
       const { image } = await decoder.decode({ frameIndex });
+      signal?.throwIfAborted();
       const durationMs = Math.max(1, (image.duration ?? options.frameTimeMs * 1000) / 1000);
       decodedFrames.push({ image, timeMs: currentTimeMs });
       currentTimeMs += durationMs;
@@ -122,13 +133,18 @@ async function decodeAnimatedImageFrames(file, options, onProgress) {
     const sampledFrameCount = Math.max(0, Math.ceil((endTimeMs - startTimeMs) / options.frameTimeMs));
     const frames = [];
 
-    for (let timeMs = startTimeMs; timeMs < endTimeMs; timeMs += options.frameTimeMs) {
-      onProgress?.(`Sampling frame ${frames.length + 1} of ${sampledFrameCount}...`);
-      const frame = findDecodedFrameAt(decodedFrames, timeMs);
-      frames.push(await imageFromCanvasSource(frame.image, file.name, frames.length, timeMs));
+    try {
+      for (let timeMs = startTimeMs; timeMs < endTimeMs; timeMs += options.frameTimeMs) {
+        onProgress?.(`Sampling frame ${frames.length + 1} of ${sampledFrameCount}...`);
+        const frame = findDecodedFrameAt(decodedFrames, timeMs);
+        frames.push(await imageFromCanvasSource(frame.image, file.name, frames.length, timeMs));
+        signal?.throwIfAborted();
+      }
+      return frames;
+    } catch (error) {
+      revokeFrames(frames);
+      throw error;
     }
-
-    return frames;
   } finally {
     for (const frame of decodedFrames) {
       frame.image.close();
@@ -168,10 +184,35 @@ async function imageFromCanvasSource(source, name, index, sourceTimeMs) {
   };
 }
 
-function waitForEvent(target, eventName) {
+function waitForEvent(target, eventName, signal) {
+  signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
-    target.addEventListener(eventName, resolve, { once: true });
-    target.addEventListener("error", () => reject(new Error(`Could not load ${eventName}.`)), { once: true });
+    const cleanup = () => {
+      target.removeEventListener(eventName, handleEvent);
+      target.removeEventListener("error", handleError);
+      signal?.removeEventListener("abort", handleAbort);
+    };
+    const handleEvent = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error(`Could not load ${eventName}.`));
+    };
+    const handleAbort = () => {
+      cleanup();
+      reject(signal.reason);
+    };
+
+    target.addEventListener(eventName, handleEvent);
+    target.addEventListener("error", handleError);
+    signal?.addEventListener("abort", handleAbort);
   });
 }
 
+function revokeFrames(frames) {
+  for (const frame of frames) {
+    URL.revokeObjectURL(frame.url);
+  }
+}

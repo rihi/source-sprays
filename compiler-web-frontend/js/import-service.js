@@ -21,17 +21,22 @@ export async function applyPendingImport({ importDialog, model }) {
   const options = importDialog.options();
 
   try {
-    importDialog.setBusy(true, "Importing frames...");
-    const frames = await decodeImportedFrames(
-        currentImport.files,
-        options,
-        (message) => importDialog.setProgress(message),
-    );
-    model.applyImportedFrames(frames, currentImport.frame, currentImport.mip, options);
-    importDialog.close();
+    await importDialog.import(async (signal) => {
+      const frames = await decodeImportedFrames(
+          currentImport.files,
+          options,
+          (message) => importDialog.setProgress(message),
+          signal,
+      );
+      model.applyImportedFrames(frames, currentImport.frame, currentImport.mip, options);
+    });
   } catch (error) {
+    if (isAbortError(error))
+      return;
+
     console.error("Could not import frames:", error);
-    importDialog.setBusy(false, error.message || "Could not import frames.");
+  } finally {
+    importDialog.close();
   }
 }
 
@@ -42,4 +47,8 @@ async function loadFileIntoSlot(file, key, model) {
   } catch (error) {
     console.log("Could not load image:", error);
   }
+}
+
+function isAbortError(error) {
+  return error instanceof DOMException && error.name === "AbortError";
 }
