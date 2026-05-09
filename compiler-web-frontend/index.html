@@ -14,6 +14,96 @@
     </div>
   </div>
 
+  <dialog id="importDialog" class="import-dialog">
+    <form id="importForm" method="dialog">
+      <h2>Import frames</h2>
+
+      <fieldset class="field">
+        <legend class="field-label">Frame count</legend>
+        
+        <div class="option-group">
+          <label>
+            <input type="radio" name="importFrameHandling" value="trim" checked>
+            <span>
+            <strong>Trim</strong>
+            <small>Use exactly the imported sequence.</small>
+          </span>
+          </label>
+          <label>
+            <input type="radio" name="importFrameHandling" value="expand">
+            <span>
+            <strong>Expand</strong>
+            <small>Grow the frame count if needed.</small>
+          </span>
+          </label>
+          <label>
+            <input type="radio" name="importFrameHandling" value="available">
+            <span>
+            <strong>Fill available</strong>
+            <small>Only fill existing frames to the right.</small>
+          </span>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend class="field-label">Existing frames</legend>
+        
+        <div class="option-group">
+          <label>
+            <input type="radio" name="importExistingHandling" value="overwrite" checked>
+            <span>
+            <strong>Overwrite</strong>
+            <small>Replace frames in the import range.</small>
+          </span>
+          </label>
+          <label>
+            <input type="radio" name="importExistingHandling" value="fill-empty">
+            <span>
+            <strong>Fill empty</strong>
+            <small>Keep slots that already have images.</small>
+          </span>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset id="importSamplingSection" class="field import-section">
+        <legend class="field-label">Sampling</legend>
+        
+        <div class="sampling-grid">
+          <div class="field">
+            <label for="importStartTime" class="field-label">Start</label>
+            <div class="inline-input">
+              <input id="importStartTime" type="number" min="0" step="0.1" value="0">
+              <span class="input-unit">s</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="importEndTime" class="field-label">End</label>
+            <div class="inline-input">
+              <input id="importEndTime" type="number" min="0" step="0.1" placeholder="End">
+              <span class="input-unit">s</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="importFrameTime" class="field-label">Frame time</label>
+            <div class="inline-input">
+              <input id="importFrameTime" type="number" min="1" step="1" value="200">
+              <span class="input-unit">ms</span>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <p id="importProgress" class="import-progress" hidden></p>
+
+      <menu class="dialog-actions">
+        <button id="importCancelButton" type="button">Cancel</button>
+        <button id="importSubmitButton" type="submit">Import</button>
+      </menu>
+    </form>
+  </dialog>
+
   <aside class="sidebar">
     <header class="title-block">
       <h1>VTF Spray Converter</h1>
@@ -104,7 +194,7 @@
     </div>
   </main>
 
-  <input id="fileInput" type="file" accept="image/*" hidden>
+  <input id="fileInput" type="file" accept="image/*,video/*" multiple hidden>
   <script type="module" src="main.js"></script>
 </body>
 </html>

@@ -15,6 +15,17 @@ const els = {
   fileInput: document.querySelector("#fileInput"),
   wasmOverlayTitle: document.querySelector("#wasmOverlayTitle"),
   wasmOverlayMessage: document.querySelector("#wasmOverlayMessage"),
+  importDialog: document.querySelector("#importDialog"),
+  importForm: document.querySelector("#importForm"),
+  importFrameHandling: document.querySelectorAll("input[name='importFrameHandling']"),
+  importExistingHandling: document.querySelectorAll("input[name='importExistingHandling']"),
+  importSamplingSection: document.querySelector("#importSamplingSection"),
+  importStartTime: document.querySelector("#importStartTime"),
+  importEndTime: document.querySelector("#importEndTime"),
+  importFrameTime: document.querySelector("#importFrameTime"),
+  importProgress: document.querySelector("#importProgress"),
+  importCancelButton: document.querySelector("#importCancelButton"),
+  importSubmitButton: document.querySelector("#importSubmitButton"),
 };
 
 const MAX_WASM_U32 = 2 ** 32 - 1;
@@ -31,6 +42,7 @@ let wasmApi = null;
 let optimal = null;
 let slots = new Map();
 let activeSlotKey = null;
+let pendingImport = null;
 
 initializeWasm();
 
@@ -58,15 +70,20 @@ for (const [key, limits] of Object.entries(numericLimits)) {
 }
 
 els.fileInput.addEventListener("change", async () => {
-  const file = els.fileInput.files?.[0];
+  const files = [...els.fileInput.files ?? []];
   els.fileInput.value = "";
-  if (!file || !activeSlotKey)
+  if (files.length === 0 || !activeSlotKey)
     return;
   
-  await loadFileIntoSlot(file, activeSlotKey);
+  await importFilesIntoSlot(files, activeSlotKey);
 });
 
 els.exportButton.addEventListener("click", exportCurrentVtf);
+els.importCancelButton.addEventListener("click", closeImportDialog);
+els.importForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await applyPendingImport();
+});
 
 function getSettings() {
   const textureValue = document.querySelector("input[name='textureFormat']:checked").value;
@@ -237,8 +254,7 @@ function renderSlot(frame, mip) {
   slot.addEventListener("drop", async (event) => {
     event.preventDefault();
     slot.classList.remove("drag-over");
-    const file = [...event.dataTransfer.files].find((item) => item.type.startsWith("image/"));
-    if (file) await loadFileIntoSlot(file, key);
+    await importFilesIntoSlot([...event.dataTransfer.files], key);
   });
 
   return slot;
@@ -299,6 +315,178 @@ function vtfFileSize(settings) {
   ));
 }
 
+async function importFilesIntoSlot(files, key) {
+  const supportedFiles = files.filter(isSupportedImportFile);
+  if (supportedFiles.length === 0)
+    return;
+
+  if (supportedFiles.length === 1 && isStaticImageFile(supportedFiles[0])) {
+    await loadFileIntoSlot(supportedFiles[0], key);
+    return;
+  }
+
+  openImportDialog(supportedFiles, key);
+}
+
+function openImportDialog(files, key) {
+  const [frame, mip] = key.split(":").map(Number);
+  const needsSamplingOptions = files.length === 1 && isTimedMediaFile(files[0]);
+  pendingImport = { files, frame, mip, needsSamplingOptions };
+
+  setCheckedValue(els.importFrameHandling, "trim");
+  setCheckedValue(els.importExistingHandling, "overwrite");
+  els.importStartTime.value = "0";
+  els.importEndTime.value = "";
+  els.importFrameTime.value = "200";
+  els.importSamplingSection.hidden = !needsSamplingOptions;
+  els.importProgress.hidden = true;
+  els.importProgress.textContent = "";
+  setImportDialogBusy(false);
+  els.importDialog.showModal();
+}
+
+function closeImportDialog() {
+  pendingImport = null;
+  els.importDialog.close();
+}
+
+async function applyPendingImport() {
+  if (!pendingImport)
+    return;
+
+  const currentImport = pendingImport;
+  const options = {
+    frameHandling: checkedValue(els.importFrameHandling),
+    existingHandling: checkedValue(els.importExistingHandling),
+    startTime: Math.max(0, Number.parseFloat(els.importStartTime.value) || 0),
+    endTime: Number.parseFloat(els.importEndTime.value),
+    frameTimeMs: Math.max(1, Number.parseInt(els.importFrameTime.value, 10) || 200),
+  };
+
+  try {
+    setImportDialogBusy(true, "Importing frames...");
+    setStatus("Importing frames.");
+    const frames = await decodeImportedFrames(currentImport.files, options, setImportProgress);
+    applyImportedFrames(frames, currentImport.frame, currentImport.mip, options);
+    closeImportDialog();
+    update();
+  } catch (error) {
+    console.error("Could not import frames:", error);
+    setStatus(error.message || "Could not import frames.", true);
+    setImportDialogBusy(false, error.message || "Could not import frames.");
+  }
+}
+
+function setImportDialogBusy(isBusy, message = "") {
+  for (const element of els.importForm.elements) {
+    element.disabled = isBusy;
+  }
+  els.importCancelButton.disabled = isBusy;
+  els.importSubmitButton.disabled = isBusy;
+  setImportProgress(message);
+}
+
+function setImportProgress(message) {
+  els.importProgress.hidden = message === "";
+  els.importProgress.textContent = message;
+}
+
+function checkedValue(inputs) {
+  return [...inputs].find((input) => input.checked)?.value;
+}
+
+function setCheckedValue(inputs, value) {
+  for (const input of inputs) {
+    input.checked = input.value === value;
+  }
+}
+
+async function decodeImportedFrames(files, options, onProgress) {
+  if (files.length === 1 && files[0].type.startsWith("video/"))
+    return decodeVideoFrames(files[0], options, onProgress);
+  if (files.length === 1 && isAnimatedImageFile(files[0]))
+    return decodeAnimatedImageFrames(files[0], options, onProgress);
+
+  const imageFiles = files.filter(isStaticImageFile);
+  const frames = [];
+  for (let index = 0; index < imageFiles.length; index += 1) {
+    onProgress?.(`Decoding image ${index + 1} of ${imageFiles.length}...`);
+    frames.push(await decodeImage(imageFiles[index]));
+  }
+  return frames;
+}
+
+function applyImportedFrames(frames, startFrame, mip, options) {
+  if (frames.length === 0)
+    throw new Error("No frames were imported.");
+
+  const settings = getSettings();
+  if (options.frameHandling === "trim") {
+    trimSlotsBeforeFrame(startFrame);
+  }
+
+  const destinationStartFrame = options.frameHandling === "trim" ? 0 : startFrame;
+  const availableFrames = settings.frameCount - destinationStartFrame;
+  const importCount = options.frameHandling === "available"
+    ? Math.min(frames.length, availableFrames)
+    : frames.length;
+  const endFrame = destinationStartFrame + importCount;
+
+  if (options.frameHandling === "trim" || options.frameHandling === "expand") {
+    els.frameCount.value = String(clampInt(endFrame, numericLimits.frameCount));
+  }
+
+  const clampedEndFrame = Math.min(endFrame, getSettings().frameCount);
+  const appliedCount = Math.max(0, clampedEndFrame - destinationStartFrame);
+  if (options.existingHandling === "overwrite") {
+    clearSlotRange(destinationStartFrame, clampedEndFrame, mip);
+  }
+
+  for (let index = 0; index < appliedCount; index += 1) {
+    const key = slotKey(destinationStartFrame + index, mip);
+    if (options.existingHandling === "fill-empty" && slots.has(key)) {
+      revokeSlot(frames[index]);
+      continue;
+    }
+
+    const previous = slots.get(key);
+    if (previous)
+      revokeSlot(previous);
+    slots.set(key, frames[index]);
+  }
+
+  for (let index = appliedCount; index < frames.length; index += 1) {
+    revokeSlot(frames[index]);
+  }
+}
+
+function trimSlotsBeforeFrame(startFrame) {
+  if (startFrame === 0)
+    return;
+
+  const shiftedSlots = new Map();
+  for (const [key, image] of slots.entries()) {
+    const [frame, mip] = key.split(":").map(Number);
+    if (frame < startFrame) {
+      revokeSlot(image);
+    } else {
+      shiftedSlots.set(slotKey(frame - startFrame, mip), image);
+    }
+  }
+  slots = shiftedSlots;
+}
+
+function clearSlotRange(startFrame, endFrame, mip) {
+  for (let frame = startFrame; frame < endFrame; frame += 1) {
+    const key = slotKey(frame, mip);
+    const previous = slots.get(key);
+    if (previous) {
+      revokeSlot(previous);
+      slots.delete(key);
+    }
+  }
+}
+
 async function loadFileIntoSlot(file, key) {
   try {
     const image = await decodeImage(file);
@@ -334,6 +522,144 @@ async function decodeImage(file) {
     URL.revokeObjectURL(url);
     throw error;
   }
+}
+
+async function decodeVideoFrames(file, options, onProgress) {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.preload = "metadata";
+  video.src = url;
+
+  try {
+    await waitForEvent(video, "loadedmetadata");
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+      await waitForEvent(video, "loadeddata");
+
+    const startTime = Math.min(options.startTime, video.duration);
+    const endTime = Number.isFinite(options.endTime)
+      ? Math.min(Math.max(options.endTime, startTime), video.duration)
+      : video.duration;
+    const stepSeconds = options.frameTimeMs / 1000;
+    const frameCount = Math.max(0, Math.ceil((endTime - startTime) / stepSeconds));
+    const frames = [];
+
+    for (let time = startTime; time < endTime; time += stepSeconds) {
+      onProgress?.(`Sampling frame ${frames.length + 1} of ${frameCount}...`);
+      await seekVideo(video, time);
+      frames.push(await imageFromCanvasSource(video, file.name, frames.length, time * 1000));
+    }
+
+    return frames;
+  } finally {
+    video.removeAttribute("src");
+    video.load();
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function seekVideo(video, time) {
+  if (Math.abs(video.currentTime - time) < 0.001 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA)
+    return;
+
+  video.currentTime = time;
+  await waitForEvent(video, "seeked");
+}
+
+async function decodeAnimatedImageFrames(file, options, onProgress) {
+  if (!("ImageDecoder" in window))
+    throw new Error("Animated image import requires ImageDecoder support in this browser.");
+
+  const decoder = new ImageDecoder({ data: await file.arrayBuffer(), type: file.type });
+  await decoder.tracks.ready;
+
+  const frameCount = decoder.tracks.selectedTrack.frameCount;
+  const decodedFrames = [];
+  let currentTimeMs = 0;
+
+  try {
+    for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+      onProgress?.(`Decoding source frame ${frameIndex + 1} of ${frameCount}...`);
+      const { image } = await decoder.decode({ frameIndex });
+      const durationMs = Math.max(1, (image.duration ?? options.frameTimeMs * 1000) / 1000);
+      decodedFrames.push({ image, timeMs: currentTimeMs });
+      currentTimeMs += durationMs;
+    }
+
+    const startTimeMs = options.startTime * 1000;
+    const endTimeMs = Number.isFinite(options.endTime)
+      ? Math.min(options.endTime * 1000, currentTimeMs)
+      : currentTimeMs;
+    const sampledFrameCount = Math.max(0, Math.ceil((endTimeMs - startTimeMs) / options.frameTimeMs));
+    const frames = [];
+
+    for (let timeMs = startTimeMs; timeMs < endTimeMs; timeMs += options.frameTimeMs) {
+      onProgress?.(`Sampling frame ${frames.length + 1} of ${sampledFrameCount}...`);
+      const frame = findDecodedFrameAt(decodedFrames, timeMs);
+      frames.push(await imageFromCanvasSource(frame.image, file.name, frames.length, timeMs));
+    }
+
+    return frames;
+  } finally {
+    for (const frame of decodedFrames) {
+      frame.image.close();
+    }
+    decoder.close();
+  }
+}
+
+function findDecodedFrameAt(frames, timeMs) {
+  let result = frames[0];
+  for (const frame of frames) {
+    if (frame.timeMs > timeMs)
+      break;
+    result = frame;
+  }
+  return result;
+}
+
+async function imageFromCanvasSource(source, name, index, sourceTimeMs) {
+  const width = source.videoWidth || source.displayWidth || source.width;
+  const height = source.videoHeight || source.displayHeight || source.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context.drawImage(source, 0, 0, width, height);
+  const imageData = context.getImageData(0, 0, width, height);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+
+  return {
+    name: `${name} ${index + 1}`,
+    url: URL.createObjectURL(blob),
+    width,
+    height,
+    rgba: Uint8Array.from(imageData.data),
+    sourceTimeMs,
+  };
+}
+
+function waitForEvent(target, eventName) {
+  return new Promise((resolve, reject) => {
+    target.addEventListener(eventName, resolve, { once: true });
+    target.addEventListener("error", () => reject(new Error(`Could not load ${eventName}.`)), { once: true });
+  });
+}
+
+function isSupportedImportFile(file) {
+  return file.type.startsWith("image/") || file.type.startsWith("video/");
+}
+
+function isStaticImageFile(file) {
+  return file.type.startsWith("image/") && !isAnimatedImageFile(file);
+}
+
+function isAnimatedImageFile(file) {
+  return file.type === "image/gif";
+}
+
+function isTimedMediaFile(file) {
+  return file.type.startsWith("video/") || isAnimatedImageFile(file);
 }
 
 function updateExportState(settings) {
