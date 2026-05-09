@@ -136,8 +136,8 @@ pub fn write_vtf_header(
 	flags |= 0x0040; // srgb
 	if mip_count == 0 {
 		flags |= 0x0100; // no mip map
-		flags |= 0x0200; // no level of detail
 	}
+	flags |= 0x0200; // no level of detail
 	flags |= match texture_format {
 		TextureFormat::DXT1 => 0x1000, // 1 bit alpha
 		TextureFormat::DXT5 => 0x2000, // 8 bit alpha
