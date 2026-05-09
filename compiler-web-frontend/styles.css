@@ -164,17 +164,54 @@ body {
 .field {
   display: grid;
   gap: var(--space-1);
+  font-size: var(--text-sm);
 }
 
-.field,
-.radio-group {
-  font-size: var(--text-sm);
+fieldset.field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.field-label {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+legend.field-label {
+  display: contents;
+}
+
+.texture-format-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
   font-weight: 600;
 }
+.texture-format-label small {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500; 
+}
 
-.field-label,
-.radio-group legend {
-  color: var(--color-text-secondary);
+.input-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: var(--space-1) var(--space-3);
+}
+
+.input-group div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.input-unit {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 input[type="number"] {
@@ -186,6 +223,7 @@ input[type="number"] {
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   font: inherit;
+  font-weight: 600;
 }
 
 input[type="number"]:focus {
@@ -195,48 +233,6 @@ input[type="number"]:focus {
 
 input:disabled {
   opacity: .58;
-}
-
-.inline-input {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.input-unit {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-}
-
-.radio-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-  padding: var(--space-1) 0 0;
-  border: 0;
-}
-
-.radio-group legend {
-  grid-column: 1 / -1;
-  padding-bottom: var(--space-1);
-}
-
-.radio-group label,
-.toggle-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-}
-
-.radio-group small {
-  display: block;
-  margin-top: var(--space-half);
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-  font-weight: 500;
 }
 
 .result-panel {

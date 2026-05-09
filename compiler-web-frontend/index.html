@@ -21,42 +21,54 @@
     </header>
 
     <form id="settings" class="settings">
-      <label class="field">
-        <span class="field-label">File size limit</span>
+      <div class="field">
+        <label for="sizeLimit" class="field-label">File size limit</label>
         <div class="inline-input">
           <input id="sizeLimit" type="number" step="1" value="512">
           <span class="input-unit">KiB</span>
         </div>
-      </label>
-
-      <label class="field">
-        <span class="field-label">Desired max resolution</span>
+      </div>
+      
+      <div class="field">
+        <label for="desiredResolution" class="field-label">Desired max resolution</label>
         <input id="desiredResolution" type="number" step="4" value="1024">
-      </label>
-
-      <label class="field">
-        <span class="field-label">Frames</span>
+      </div>
+      
+      <div class="field">
+        <label for="frameCount" class="field-label">Frames</label>
         <input id="frameCount" type="number" step="1" value="1">
-      </label>
+      </div>
 
-      <label class="field">
-        <span class="field-label">Mip levels</span>
-        <div class="toggle-row">
-          <input id="lowestMipEnabled" type="checkbox">
-          <span>Generate mipmaps</span>
+      <fieldset class="field">
+        <legend class="field-label">Mip levels</legend>
+
+        <div class="input-group">
+          <div>
+            <input id="lowestMipEnabled" type="checkbox">
+            <label for="lowestMipEnabled">Generate mipmaps</label>
+          </div>
         </div>
-      </label>
+      </fieldset>
+      
+      <fieldset class="field">
+        <legend class="field-label">Texture format</legend>
 
-      <fieldset class="radio-group">
-        <legend>Texture format</legend>
-        <label>
-          <input type="radio" name="textureFormat" value="dxt1" checked>
-          <span>DXT1 <small>1-bit alpha</small></span>
-        </label>
-        <label>
-          <input type="radio" name="textureFormat" value="dxt5">
-          <span>DXT5 <small>8-bit alpha</small></span>
-        </label>
+        <div class="input-group">
+          <div>
+            <input type="radio" id="textureFormat1" name="textureFormat" value="dxt1" checked>
+            <label for="textureFormat1" class="texture-format-label">
+              <span>DXT1</span>
+              <small>1-bit alpha</small>
+            </label>
+          </div>
+          <div>
+            <input type="radio" id="textureFormat5" name="textureFormat" value="dxt5">
+            <label for="textureFormat5" class="texture-format-label">
+              <span>DXT5</span>
+              <small>8-bit alpha</small>
+            </label>
+          </div>
+        </div>
       </fieldset>
     </form>
 
