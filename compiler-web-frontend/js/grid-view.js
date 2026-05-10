@@ -77,6 +77,7 @@ export function renderGrid(container, { settings, optimal, slotStore, statusMess
   for (let mip = 0; mip < rows; mip += 1) {
     for (let frame = 0; frame < frames; frame += 1) {
       const slot = renderSlot(frame, mip, {
+        single: !showMipHeader && !showFrameHeader,
         maxMip: optimal.mip_count,
         slotStore,
         onSlotClick,
@@ -89,7 +90,7 @@ export function renderGrid(container, { settings, optimal, slotStore, statusMess
   }
 }
 
-function renderSlot(frame, mip, { maxMip, slotStore, onSlotClick, onSlotDrop }) {
+function renderSlot(frame, mip, { single, maxMip, slotStore, onSlotClick, onSlotDrop }) {
   const key = slotKey(frame, mip);
   const { own, inherited, source } = slotStore.ownOrInherited(frame, mip, maxMip);
   const slot = document.createElement("button");
@@ -99,7 +100,7 @@ function renderSlot(frame, mip, { maxMip, slotStore, onSlotClick, onSlotDrop }) 
   if (!own && inherited) slot.classList.add("is-inherited");
   slot.title = own
     ? "Click to clear this image."
-    : "Click or drop an image to set this slot.";
+    : "Click or drop an image (sequence), video or gif to set this slot.";
 
   if (source) {
     const img = document.createElement("img");
@@ -108,7 +109,10 @@ function renderSlot(frame, mip, { maxMip, slotStore, onSlotClick, onSlotDrop }) 
     slot.append(img);
     slot.append(div("slot-label", own ? source.name : `Inherited: ${source.name}`));
   } else {
-    slot.append(div("empty-copy", "Drop image or click"));
+    let text = single 
+        ? "Drop image(s)/video/gif or click"
+        : "Drop media or click";
+    slot.append(div("empty-copy", text));
   }
 
   slot.addEventListener("click", () => onSlotClick(key, Boolean(own)));
