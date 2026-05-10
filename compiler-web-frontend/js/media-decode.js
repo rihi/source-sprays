@@ -1,10 +1,14 @@
 export async function decodeImportedFrames(files, options, onProgress, signal) {
   if (files.length === 1 && files[0].type.startsWith("video/"))
     return decodeVideoFrames(files[0], options, onProgress, signal);
-  if (files.length === 1 && isAnimatedImageFile(files[0]))
+  if (files.length === 1 && await isAnimatedImageFile(files[0]))
     return decodeAnimatedImageFrames(files[0], options, onProgress, signal);
 
-  const imageFiles = files.filter(isStaticImageFile);
+  const imageFiles = [];
+  for (const file of files) {
+    if (await isStaticImageFile(file))
+      imageFiles.push(file);
+  }
   const frames = [];
   try {
     for (let index = 0; index < imageFiles.length; index += 1) {
@@ -47,16 +51,31 @@ export function isSupportedImportFile(file) {
   return file.type.startsWith("image/") || file.type.startsWith("video/");
 }
 
-export function isStaticImageFile(file) {
-  return file.type.startsWith("image/") && !isAnimatedImageFile(file);
+export async function isStaticImageFile(file) {
+  return file.type.startsWith("image/") && !await isAnimatedImageFile(file);
 }
 
-export function isAnimatedImageFile(file) {
-  return file.type === "image/gif";
+export async function isAnimatedImageFile(file) {
+  if (!file.type.startsWith("image/") || !("ImageDecoder" in window))
+    return false;
+  if (typeof ImageDecoder.isTypeSupported !== "function" || !await ImageDecoder.isTypeSupported(file.type))
+    return false;
+
+  let decoder = null;
+  try {
+    decoder = new ImageDecoder({ data: await file.arrayBuffer(), type: file.type });
+    await decoder.tracks.ready;
+    const track = decoder.tracks.selectedTrack;
+    return Boolean(track?.animated || track?.frameCount > 1);
+  } catch {
+    return false;
+  } finally {
+    decoder?.close();
+  }
 }
 
-export function isTimedMediaFile(file) {
-  return file.type.startsWith("video/") || isAnimatedImageFile(file);
+export async function isTimedMediaFile(file) {
+  return file.type.startsWith("video/") || await isAnimatedImageFile(file);
 }
 
 async function decodeVideoFrames(file, options, onProgress, signal) {

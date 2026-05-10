@@ -5,12 +5,12 @@ export async function importFilesIntoSlot(files, key, model, importDialog) {
   if (supportedFiles.length === 0)
     return;
 
-  if (supportedFiles.length === 1 && isStaticImageFile(supportedFiles[0])) {
+  if (supportedFiles.length === 1 && await isStaticImageFile(supportedFiles[0])) {
     await loadFileIntoSlot(supportedFiles[0], key, model);
     return;
   }
 
-  importDialog.open(supportedFiles, key);
+  await importDialog.open(supportedFiles, key);
 }
 
 export async function applyPendingImport({ importDialog, model }) {

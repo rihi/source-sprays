@@ -21,12 +21,12 @@ export class ImportDialog {
     return this.#pendingImport;
   }
 
-  open(files, key) {
+  async open(files, key) {
     if (this.#abortController !== null)
       throw new Error("Tried opening while importing")
     
     const [frame, mip] = key.split(":").map(Number);
-    const needsSamplingOptions = files.length === 1 && isTimedMediaFile(files[0]);
+    const needsSamplingOptions = files.length === 1 && await isTimedMediaFile(files[0]);
     this.#pendingImport = { files, frame, mip, needsSamplingOptions };
 
     setCheckedValue(this.#els.importFrameHandling, "trim");
