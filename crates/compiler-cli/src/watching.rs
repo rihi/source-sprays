@@ -215,7 +215,9 @@ pub fn convert_folder(
 	let Some((_min_mip, max_mip)) = image_paths.keys()
 		.map(|&(m, _)| m)
 		.minmax()
-		.into_option() else { return Ok(()) };
+		.into_option() else {
+			return Err(eyre!("Spray directory contains no frames/mips")); 
+		};
 	let (min_frame, max_frame) = image_paths.keys()
 		.map(|&(_, f)| f)
 		.minmax()
