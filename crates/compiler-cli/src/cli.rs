@@ -1,4 +1,4 @@
-use crate::watching::{compile_spray_def, delete_spray_def, is_spray_def, path_vtf_for_def};
+use crate::watching::{compile_spray_def, convert_file, convert_folder, delete_spray_def, is_spray_def, path_vtf_for_def};
 use bpaf::Bpaf;
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
@@ -227,28 +227,47 @@ pub fn run() -> eyre::Result<()> {
 			}
 			
 			let process_whole = || {
-				if recursive {
-					for entry in WalkDir::new(&input_path) {
-						let entry = match entry {
-							Ok(entry) => entry,
-							Err(e) => {
-								eprintln!("Warning: Skipping entry: {:?}", e);
-								continue
-							}
-						};
-
-						if is_spray_def(entry.path()) {
-							let vtf_path = path_vtf_for_def(entry.path(), &input_path, &output_path);
-							compile_spray_def(entry.path(), &vtf_path, lowest_mip_resolution, desired_resolution, size_limit, recursive);
+				for entry in WalkDir::new(&input_path) {
+					let entry = match entry {
+						Ok(entry) => entry,
+						Err(e) => {
+							eprintln!("Warning: Skipping entry: {:?}", e);
+							continue
 						}
+					};
+
+					if is_spray_def(entry.path()) {
+						let vtf_path = path_vtf_for_def(entry.path(), &input_path, &output_path);
+						compile_spray_def(entry.path(), &vtf_path, lowest_mip_resolution, desired_resolution, size_limit);
 					}
-				} else {
-					compile_spray_def(&input_path, &output_path, lowest_mip_resolution, desired_resolution, size_limit, recursive);
 				}
 			};
 
 			if !watch_changes {
-				process_whole();
+				if recursive {
+					process_whole();
+				} else {
+					if input_path.is_file() {
+						convert_file(
+							&input_path,
+							&output_path,
+							lowest_mip_resolution.infer(true),
+							desired_resolution,
+							size_limit,
+							false
+						)?;
+					}
+					if input_path.is_dir() {
+						convert_folder(
+							&input_path,
+							&output_path,
+							lowest_mip_resolution,
+							desired_resolution,
+							size_limit,
+							false
+						)?;
+					}
+				}
 				return Ok(());
 			}
 
@@ -266,7 +285,7 @@ pub fn run() -> eyre::Result<()> {
 					false if path == input_path => &output_path,
 					_ => return
 				};
-				compile_spray_def(path, vtf_path, lowest_mip_resolution, desired_resolution, size_limit, recursive);
+				compile_spray_def(path, vtf_path, lowest_mip_resolution, desired_resolution, size_limit);
 			};
 			let on_file_new_data = |path: &Path| {
 				compile_potential_def(path);

@@ -51,7 +51,6 @@ pub fn compile_spray_def(
 	lowest_mip_resolution: LMipResOption,
 	desired_resolution: Option<u32>,
 	size_limit: u64,
-	copy_metadata: bool,
 ) {
 	if def_path.is_file() {
 		println!("Info: Compiling file spray def {} to {}", def_path.display(), vtf_path.display());
@@ -61,7 +60,7 @@ pub fn compile_spray_def(
 			lowest_mip_resolution.infer(true),
 			desired_resolution,
 			size_limit,
-			copy_metadata
+			true
 		) {
 			eprintln!("Error: Failed convert file def to vtf: {}\n{:?}", def_path.display(), e);
 		}
@@ -74,7 +73,7 @@ pub fn compile_spray_def(
 			lowest_mip_resolution,
 			desired_resolution,
 			size_limit,
-			copy_metadata
+			true
 		) {
 			eprintln!("Error: Failed convert dir def to vtf: {}\n{:?}", vtf_path.display(), e);
 		}
@@ -201,11 +200,11 @@ pub fn convert_folder(
 				.map(|r| r.unwrap_or(0));
 
 			let Ok(mip) = parse_number(mip) else {
-				eprintln!("File {} doesn't have valid mip number", path.display());
+				eprintln!("Warning: File {} doesn't have valid mip number", path.display());
 				continue
 			};
 			let Ok(frame) = parse_number(frame) else {
-				eprintln!("File {} doesn't have valid mip number", path.display());
+				eprintln!("Warning: File {} doesn't have valid mip number", path.display());
 				continue
 			};
 			image_paths.insert((mip, frame), path);
